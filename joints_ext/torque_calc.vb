@@ -217,10 +217,10 @@ Public Class TorqueCalc
     ''' Calculates the stress in the bolt at the thread according to VDI 2230.
     ''' </summary>
     ''' <param name="FSB">Bolt force in N</param>
-    ''' <param name="AS">Stress area in mm²</param>
+    ''' <param name="StressArea_AS">Stress area in mm²</param>
     ''' <returns>Bolt stress in N/mm² (MPa)</returns>
-    Public Shared Function VDI_BoltStress(ByVal FSB As Double, ByVal AS As Double) As Double
-        VDI_BoltStress = FSB / AS
+    Public Shared Function VDI_BoltStress(ByVal FSB As Double, ByVal StressArea_AS As Double) As Double
+        VDI_BoltStress = FSB / StressArea_AS
     End Function
 
     ''' <summary>

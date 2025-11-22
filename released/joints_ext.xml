@@ -1,0 +1,189 @@
+﻿<?xml version="1.0"?>
+<doc>
+<assembly>
+<name>
+joints_ext
+</name>
+</assembly>
+<members>
+<member name="T:joints_ext.TorqueCalc">
+ <summary>
+ Provides torque and bolted joint calculation functions.
+ Includes basic torque calculations and VDI 2230 standard calculations for systematic design of highly stressed bolted joints.
+ </summary>
+ <remarks>
+ VDI 2230 calculations based on VDI 2230 Part 1 (2015) - Systematic calculation of highly stressed bolted joints.
+ </remarks>
+</member>
+<member name="M:joints_ext.TorqueCalc.StressArea(System.Double,System.Double)">
+ <summary>
+ Calculates the stress area of a threaded fastener according to ISO 898-1.
+ </summary>
+ <param name="d2">Pitch diameter in mm</param>
+ <param name="d3">Minor diameter (core diameter) in mm</param>
+ <returns>Stress area in mm²</returns>
+ <remarks>Formula: As = (π/4) × ((d2 + d3)/2)²</remarks>
+</member>
+<member name="M:joints_ext.TorqueCalc.Torque1(System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the required tightening torque using the general torque equation.
+ </summary>
+ <param name="LoadAxial">Axial preload force in N</param>
+ <param name="d2">Pitch diameter in mm</param>
+ <param name="d0">Bearing surface inner diameter in mm</param>
+ <param name="b0">Bearing surface outer diameter in mm</param>
+ <param name="u1">Thread friction coefficient (typically 0.12-0.18)</param>
+ <param name="u2">Head/nut bearing friction coefficient (typically 0.10-0.16)</param>
+ <param name="alpha">Thread flank angle in degrees (typically 30° for metric threads)</param>
+ <param name="P">Thread pitch in mm</param>
+ <returns>Tightening torque in Nm</returns>
+ <remarks>M = F × (P/(2π) + (μ_thread × d2)/(2×cos(α)) + μ_head × d_bearing/2)</remarks>
+</member>
+<member name="M:joints_ext.TorqueCalc.LoadAxial(System.Double,System.Double)">
+ <summary>
+ Calculates the axial load from allowed stress and stress area.
+ </summary>
+ <param name="deltaAllowed">Allowed stress in MPa</param>
+ <param name="stressArea">Stress area in mm²</param>
+ <returns>Axial load in N</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.validateBolt(System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Boolean,System.Boolean)">
+ <summary>
+ Validates bolt strength using surface failure criteria.
+ </summary>
+</member>
+<member name="M:joints_ext.TorqueCalc.CalculateClamping(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates clamping force from torque using simplified formula.
+ </summary>
+ <param name="Torque">Applied torque in Nm</param>
+ <param name="Coef">Torque coefficient (typically 0.15-0.20)</param>
+ <param name="BoltSize">Nominal bolt diameter in mm</param>
+ <returns>Clamping force in N</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_BoltResilience(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the resilience (compliance) of the bolt according to VDI 2230.
+ </summary>
+ <param name="lK">Clamped length in mm</param>
+ <param name="A">Cross-sectional area in mm²</param>
+ <param name="E">Modulus of elasticity in N/mm²</param>
+ <returns>Bolt resilience in mm/N</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_ClampedPartsResilience(System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the resilience of clamped parts according to VDI 2230.
+ Uses the substitute area approach for complex geometries.
+ </summary>
+ <param name="lK">Clamped length in mm</param>
+ <param name="dW">Washer diameter or bearing surface diameter in mm</param>
+ <param name="dh">Hole diameter in mm</param>
+ <param name="E">Modulus of elasticity of clamped material in N/mm²</param>
+ <returns>Clamped parts resilience in mm/N</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_LoadFactor(System.Double,System.Double)">
+ <summary>
+ Calculates the load factor (load introduction factor) according to VDI 2230.
+ </summary>
+ <param name="deltaBolt">Bolt resilience in mm/N</param>
+ <param name="deltaClampedParts">Clamped parts resilience in mm/N</param>
+ <returns>Load factor Phi (dimensionless, 0-1)</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_BoltForceWorking(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the bolt force under working load according to VDI 2230.
+ </summary>
+ <param name="FV">Preload force in N</param>
+ <param name="FA">Working (operating) load in N</param>
+ <param name="Phi">Load factor (0-1)</param>
+ <returns>Bolt force under working load in N</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_ClampingForceWorking(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the clamping force under working load according to VDI 2230.
+ </summary>
+ <param name="FV">Preload force in N</param>
+ <param name="FA">Working (operating) load in N</param>
+ <param name="Phi">Load factor (0-1)</param>
+ <returns>Clamping force under working load in N</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_AssemblyPreload(System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the assembly preload force according to VDI 2230.
+ </summary>
+ <param name="FMTab">Assembly preload from torque tables in N</param>
+ <param name="alphaA">Thermal expansion coefficient of bolt (1/K)</param>
+ <param name="alphaP">Thermal expansion coefficient of clamped parts (1/K)</param>
+ <param name="deltaT">Temperature change in K</param>
+ <param name="lK">Clamped length in mm</param>
+ <param name="deltaBolt">Bolt resilience in mm/N</param>
+ <param name="deltaClampedParts">Clamped parts resilience in mm/N</param>
+ <returns>Assembly preload force in N</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_TighteningTorque(System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the tightening torque according to VDI 2230.
+ </summary>
+ <param name="FV">Target preload force in N</param>
+ <param name="d">Nominal bolt diameter in mm</param>
+ <param name="P">Thread pitch in mm</param>
+ <param name="d2">Pitch diameter in mm</param>
+ <param name="muG">Thread friction coefficient</param>
+ <param name="muK">Head/nut friction coefficient</param>
+ <param name="dKm">Mean bearing diameter in mm</param>
+ <returns>Tightening torque in Nm</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_MinimumPreload(System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the minimum required preload force according to VDI 2230.
+ </summary>
+ <param name="FA">Working (operating) load in N</param>
+ <param name="FZ">Additional external load in N</param>
+ <param name="Phi">Load factor (0-1)</param>
+ <param name="n">Number of interfaces</param>
+ <returns>Minimum required preload in N</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_BoltStress(System.Double,System.Double)">
+ <summary>
+ Calculates the stress in the bolt at the thread according to VDI 2230.
+ </summary>
+ <param name="FSB">Bolt force in N</param>
+ <param name="StressArea_AS">Stress area in mm²</param>
+ <returns>Bolt stress in N/mm² (MPa)</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_UtilizationFactor(System.Double,System.Double)">
+ <summary>
+ Calculates the utilization factor (safety factor) according to VDI 2230.
+ </summary>
+ <param name="sigmaBolt">Actual bolt stress in MPa</param>
+ <param name="Rp02">Yield strength (0.2% proof stress) in MPa</param>
+ <returns>Utilization factor (should be less than 0.9 for static loads)</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_EccentricLoadingFactor(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the eccentric loading factor according to VDI 2230.
+ </summary>
+ <param name="n">Exponent based on load type (n=1 for pressure, n=4-8 for bending)</param>
+ <param name="dA">Outer diameter of load introduction in mm</param>
+ <param name="dW">Washer/bearing diameter in mm</param>
+ <returns>Eccentric loading factor Phi_n</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_EmbeddingLoss(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the embedding/settling loss according to VDI 2230.
+ </summary>
+ <param name="fZ">Embedding factor (typically 3-5 µm for fine machined surfaces)</param>
+ <param name="deltaBolt">Bolt resilience in mm/N</param>
+ <param name="deltaClampedParts">Clamped parts resilience in mm/N</param>
+ <returns>Preload loss due to embedding in N</returns>
+</member>
+<member name="M:joints_ext.TorqueCalc.VDI_EffectivePreloadTorque(System.Double,System.Double)">
+ <summary>
+ Calculates the prevailing torque for locking elements according to VDI 2230.
+ </summary>
+ <param name="MGF">Prevailing torque moment in Nm</param>
+ <param name="MA">Assembly torque in Nm</param>
+ <returns>Effective preload torque in Nm</returns>
+</member>
+</members>
+</doc>

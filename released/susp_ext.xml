@@ -1,0 +1,317 @@
+﻿<?xml version="1.0"?>
+<doc>
+<assembly>
+<name>
+susp_ext
+</name>
+</assembly>
+<members>
+<member name="T:susp_ext.SpringCalc">
+ <summary>
+ Provides spring calculation functions for helical compression springs.
+ Includes calculations for spring rate, stress, buckling, and dimensional parameters.
+ </summary>
+ <remarks>
+ Calculations based on ISO 11891:2012 - Hot formed helical compression springs — Technical specifications.
+ </remarks>
+</member>
+<member name="F:susp_ext.SpringCalc.gValue">
+ <summary>
+ Standard gravity acceleration value in m/s²
+ </summary>
+</member>
+<member name="M:susp_ext.SpringCalc.NumberOfActiveCoil(System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the number of active coils from spring properties.
+ </summary>
+ <param name="YoungModulus">Young's Modulus (E) in N/mm²</param>
+ <param name="WireDiameter">Wire diameter (d) in mm</param>
+ <param name="CoilMeanDiameter">Mean coil diameter (D) in mm</param>
+ <param name="SpringRate">Spring rate (k) in N/mm</param>
+ <returns>Number of active coils</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.WireDiameter(System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the required wire diameter from spring properties.
+ </summary>
+ <param name="YoungModulus">Young's Modulus (E) in N/mm²</param>
+ <param name="NumberOfActiveCoil">Number of active coils</param>
+ <param name="CoilMeanDiameter">Mean coil diameter (D) in mm</param>
+ <param name="SpringRate">Spring rate (k) in N/mm</param>
+ <returns>Wire diameter in mm</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.SpringRate3(System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the spring rate using Young's Modulus.
+ </summary>
+ <param name="YoungModulus">Young's Modulus (E) in N/mm²</param>
+ <param name="NumberOfTotalCoil">Total number of coils</param>
+ <param name="CoilMeanDiameter">Mean coil diameter (D) in mm</param>
+ <param name="WireDiameter">Wire diameter (d) in mm</param>
+ <returns>Spring rate in N/mm</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.SpringRate(System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the spring rate using Modulus of Rigidity (Shear Modulus).
+ </summary>
+ <param name="ModulusOfRigidity">Modulus of Rigidity (G) in N/mm²</param>
+ <param name="MeanCoilDiameter">Mean coil diameter (D) in mm</param>
+ <param name="WireDiameter">Wire diameter (d) in mm</param>
+ <param name="TotalNumberOfCoil">Total number of coils</param>
+ <returns>Spring rate in N/mm</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.SpringIndex(System.Double,System.Double)">
+ <summary>
+ Calculates the spring index (ratio of mean coil diameter to wire diameter).
+ Typical values range from 4 to 12.
+ </summary>
+ <param name="WireDiameter">Wire diameter (d) in mm</param>
+ <param name="CoilMeanDiameter">Mean coil diameter (D) in mm</param>
+ <returns>Spring index (C = D/d)</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.WahlFactor(System.Double)">
+ <summary>
+ Calculates the Wahl stress correction factor for curvature and direct shear effects.
+ </summary>
+ <param name="SpringIndex">Spring index (C = D/d)</param>
+ <returns>Wahl correction factor</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.FreeHeight(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the free height of the spring (unloaded length).
+ </summary>
+ <param name="DesignLoad">Design load in N</param>
+ <param name="SpringRate">Spring rate in N/mm</param>
+ <param name="DesignHeight">Design height (loaded height) in mm</param>
+ <returns>Free height in mm</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.TorsionalStressCorrected(System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the corrected torsional stress using the Wahl factor.
+ </summary>
+ <param name="CoilMeanDiameter">Mean coil diameter (D) in mm</param>
+ <param name="DesignLoad">Design load in N</param>
+ <param name="WireDiameter">Wire diameter (d) in mm</param>
+ <param name="WahlFactor">Wahl correction factor</param>
+ <returns>Corrected torsional stress in N/mm²</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.TorsionalStress(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the uncorrected torsional stress in the spring wire.
+ </summary>
+ <param name="CoilMeanDiameter">Mean coil diameter (D) in mm</param>
+ <param name="DesignLoad">Design load in N</param>
+ <param name="WireDiameter">Wire diameter (d) in mm</param>
+ <returns>Torsional stress in N/mm²</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.Zvalue(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the Z-value (stress per unit load).
+ </summary>
+ <param name="CoilMeanDiameter">Mean coil diameter (D) in mm</param>
+ <param name="WahlFactor">Wahl correction factor</param>
+ <param name="WireDiameter">Wire diameter (d) in mm</param>
+ <returns>Z-value in 1/mm²</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.RootN(System.Double,System.Double)">
+ <summary>
+ Calculates the nth root of a number.
+ </summary>
+ <param name="Number">The number to find the root of</param>
+ <param name="Power">The root power (e.g., 2 for square root, 3 for cube root)</param>
+ <returns>The nth root of the number</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.OptimumWireDiameter(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the optimum wire diameter for a given load and stress.
+ </summary>
+ <param name="MeanCoilDiameter">Mean coil diameter (D) in mm</param>
+ <param name="Load">Applied load in N</param>
+ <param name="Stress">Target stress in N/mm²</param>
+ <returns>Optimum wire diameter in mm</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.NoOfEndCoil(System.String)">
+ <summary>
+ Returns the number of end coils based on spring end condition.
+ </summary>
+ <param name="SpringEndCondition">Spring end condition type (e.g., "CLOSED GROUND", "OPEN NON GROUND")</param>
+ <returns>Number of end coils</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.MinLength(System.Double,System.Double)">
+ <summary>
+ Calculates the minimum length of the spring assembly.
+ </summary>
+ <param name="SolidLength">Solid length (fully compressed) in mm</param>
+ <param name="SumOfMinimumGap">Sum of minimum gaps in mm</param>
+ <returns>Minimum length in mm</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.SolidLength(System.Double,System.Double,System.String,System.String)">
+ <summary>
+ Calculates the solid length (fully compressed length) based on end condition and manufacturing method.
+ </summary>
+ <param name="TotalNoOfCoil">Total number of coils</param>
+ <param name="WireDiameter">Wire diameter in mm</param>
+ <param name="SpringEndCondition">Spring end condition (e.g., "CLOSED GROUND", "OPEN NON GROUND")</param>
+ <param name="ManufacturingMethod">Manufacturing method ("COLD COILED" or "HOT COILED")</param>
+ <returns>Solid length in mm</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.MaxSpringLoad(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the maximum spring load at solid length.
+ </summary>
+ <param name="SpringRate">Spring rate in N/mm</param>
+ <param name="FreeHeight">Free height in mm</param>
+ <param name="SolidLength">Solid length in mm</param>
+ <returns>Maximum spring load in N</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.RideFrequency(System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the ride frequency (natural frequency) of the suspension system.
+ </summary>
+ <param name="SpringRate">Spring rate in N/mm</param>
+ <param name="SuspensionRatio">Suspension motion ratio</param>
+ <param name="DesignLoad">Design load in N</param>
+ <returns>Ride frequency in Hz</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.WireLength(System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Calculates the total length of wire required for the spring.
+ </summary>
+ <param name="CoilMeanDiameter">Mean coil diameter in mm</param>
+ <param name="DesignHeight">Design height in mm</param>
+ <param name="NumberOfActiveCoil">Number of active coils</param>
+ <param name="NumberOfTotalCoil">Total number of coils</param>
+ <returns>Wire length in mm</returns>
+</member>
+<member name="M:susp_ext.SpringCalc.checkBuckling(System.Double,System.Double,System.Double,System.Double,System.Double,System.Double)">
+ <summary>
+ Checks if the spring will buckle under the maximum deflection.
+ </summary>
+ <param name="ModulusOfRigidity">Modulus of Rigidity (G) in N/mm²</param>
+ <param name="ModulusOfElasticity">Modulus of Elasticity (E) in N/mm²</param>
+ <param name="MeanCoilDiameter">Mean coil diameter in mm</param>
+ <param name="SeatingCoefficient">Seating coefficient (typically 0.5 for fixed ends, 1.0 for one end free)</param>
+ <param name="FreeHeight">Free height in mm</param>
+ <param name="MaximumDeflection">Maximum deflection in mm</param>
+ <returns>True if spring will not buckle, False if buckling will occur</returns>
+</member>
+<member name="T:susp_ext.TyreCalc">
+ <summary>
+ Provides tyre and rim calculation functions for automotive applications.
+ All calculations follow standard tyre sizing conventions and ETRTO standards.
+ </summary>
+</member>
+<member name="M:susp_ext.TyreCalc.NominalDesignDiameter(System.String,System.String,System.String,System.String)">
+ <summary>
+ Calculates the nominal design diameter of a tyre including rim width correction.
+ </summary>
+ <param name="TyreWidth">Nominal section width in mm (e.g., "205")</param>
+ <param name="AspectRatio">Aspect ratio as percentage (e.g., "55")</param>
+ <param name="RimSize">Rim diameter code (e.g., "R16")</param>
+ <param name="rimWidth">Rim width in inches (e.g., "7.0")</param>
+ <returns>Nominal design diameter in mm</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.RollingCircumference(System.String,System.String,System.String,System.String)">
+ <summary>
+ Calculates the rolling circumference of a tyre.
+ </summary>
+ <param name="TyreWidth">Nominal section width in mm</param>
+ <param name="AspectRatio">Aspect ratio as percentage</param>
+ <param name="RimSize">Rim diameter code (e.g., "R16")</param>
+ <param name="rimWidth">Rim width in inches</param>
+ <returns>Rolling circumference in mm</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.StaticLoadedRadius(System.String,System.String,System.String,System.String)">
+ <summary>
+ Calculates the static loaded radius of a tyre (78% of unloaded radius).
+ </summary>
+ <param name="TyreWidth">Nominal section width in mm</param>
+ <param name="AspectRatio">Aspect ratio as percentage</param>
+ <param name="RimSize">Rim diameter code (e.g., "R16")</param>
+ <param name="rimWidth">Rim width in inches</param>
+ <returns>Static loaded radius in mm</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.MaxDiameterInService(System.String,System.String,System.String,System.String)">
+ <summary>
+ Calculates the maximum diameter in service (104% of nominal diameter).
+ </summary>
+ <param name="TyreWidth">Nominal section width in mm</param>
+ <param name="AspectRatio">Aspect ratio as percentage</param>
+ <param name="RimSize">Rim diameter code (e.g., "R16")</param>
+ <param name="rimWidth">Rim width in inches</param>
+ <returns>Maximum diameter in service in mm</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.RimWidthCorrection(System.String,System.String,System.String)">
+ <summary>
+ Calculates the rim width correction factor for diameter adjustments.
+ Applies 5mm correction per 0.5 inch deviation from standard rim width.
+ </summary>
+ <param name="TyreWidth">Nominal section width in mm</param>
+ <param name="AspectRatio">Aspect ratio as percentage</param>
+ <param name="RimWidth">Actual rim width in inches</param>
+ <returns>Correction factor in mm</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.MeasuringRimWidth(System.String)">
+ <summary>
+ Converts rim width from inches to millimeters.
+ </summary>
+ <param name="RimWidth">Rim width in inches</param>
+ <returns>Rim width in mm</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.SpecifiedRimDiameter(System.String)">
+ <summary>
+ Converts rim diameter from rim size code to millimeters.
+ </summary>
+ <param name="RimSize">Rim diameter code (e.g., "R16")</param>
+ <returns>Rim diameter in mm</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.MaxWidthInService(System.Double)">
+ <summary>
+ Calculates the maximum width in service (104% of design section width).
+ </summary>
+ <param name="DesignSectionWidth">Design section width in mm</param>
+ <returns>Maximum width in service in mm</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.DesignSectionWidth(System.String,System.String,System.String)">
+ <summary>
+ Calculates the design section width based on tyre specifications and rim width.
+ Accounts for rim width variance from theoretical width.
+ </summary>
+ <param name="TyreWidth">Nominal section width in mm</param>
+ <param name="AspectRatio">Aspect ratio as percentage</param>
+ <param name="RimWidth">Rim width in inches</param>
+ <returns>Design section width in mm</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.PublishValue(System.String,System.String,System.String,System.String,System.Boolean)">
+ <summary>
+ Generates a DataTable containing all calculated tyre parameters.
+ </summary>
+ <param name="TyreWidth">Nominal section width in mm</param>
+ <param name="AspectRatio">Aspect ratio as percentage</param>
+ <param name="RimSize">Rim diameter code (e.g., "R16")</param>
+ <param name="RimWidth">Rim width in inches</param>
+ <param name="MaxInService">If True, uses max in-service values; otherwise uses design values</param>
+ <returns>DataTable with Parameter, Value, and Unit columns</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.PublishRimValue(System.String,System.String,System.String,System.String,System.String)">
+ <summary>
+ Generates a DataTable containing all calculated rim/wheel parameters.
+ </summary>
+ <param name="RimSize">Rim diameter code (e.g., "R16")</param>
+ <param name="RimWidth">Rim width in inches</param>
+ <param name="WheelOffset">Wheel offset (ET) in mm</param>
+ <param name="PCD">Pitch circle diameter in mm</param>
+ <param name="NoOfLug">Number of lug holes</param>
+ <returns>DataTable with Parameter, Value, and Unit columns</returns>
+</member>
+<member name="M:susp_ext.TyreCalc.CalcRimWidth(System.Double,System.Double)">
+ <summary>
+ Calculates the standard measuring rim width for a given tyre specification.
+ Based on ETRTO standards for aspect ratio to rim width ratios.
+ </summary>
+ <param name="TyreWidth">Nominal section width in mm</param>
+ <param name="AspectRatio">Aspect ratio as percentage</param>
+ <returns>Standard rim width in inches</returns>
+</member>
+</members>
+</doc>

@@ -167,6 +167,8 @@ Public Class SpringCalc
             NoOfEndCoil = 1.5
         ElseIf SpringEndCondition = "PROTON EXORA" Then
             NoOfEndCoil = 1.5
+        Else
+            NoOfEndCoil = 2.0
         End If
     End Function
 

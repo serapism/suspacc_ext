@@ -62,7 +62,7 @@ Public Class TyreCalc
     ''' <param name="RimWidth">Actual rim width in inches</param>
     ''' <returns>Correction factor in mm</returns>
     Public Shared Function RimWidthCorrection(ByVal TyreWidth As String, ByVal AspectRatio As String, ByVal RimWidth As String) As Double
-        Dim StdValue As Double = iCHASSIS.TyreCalc.CalcRimWidth(TyreWidth:=CDbl(TyreWidth), AspectRatio:=CDbl(AspectRatio))
+        Dim StdValue As Double = CalcRimWidth(CDbl(TyreWidth), CDbl(AspectRatio))
         Dim factor As Double
         Try
             factor = (StdValue - CDbl(RimWidth)) / 0.5

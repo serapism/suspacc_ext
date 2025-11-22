@@ -10,12 +10,22 @@ This library provides comprehensive engineering calculations for automotive susp
 
 ```
 suspacc_ext/
-├── susp_ext/           # Suspension calculations
-│   ├── tyre_calc.vb   # Tyre dimension and parameter calculations
-│   └── spring_calc.vb # Helical compression spring calculations
-├── joints_ext/         # Bolted joint calculations
-│   └── torque_calc.vb # Torque and VDI 2230 calculations
-└── acc_ext/           # Accessories calculations
+├── susp_ext/              # Suspension calculations
+│   ├── tyre_calc.vb      # Tyre dimension and parameter calculations
+│   ├── spring_calc.vb    # Helical compression spring calculations
+│   └── susp_ext.vbproj   # VB.NET project file
+├── joints_ext/            # Bolted joint calculations
+│   ├── torque_calc.vb    # Torque and VDI 2230 calculations
+│   └── joints_ext.vbproj # VB.NET project file
+├── released/              # Compiled release binaries
+│   ├── susp_ext.dll      # Suspension library
+│   ├── susp_ext.xml      # XML documentation
+│   ├── susp_ext.pdb      # Debug symbols
+│   ├── joints_ext.dll    # Bolted joints library
+│   ├── joints_ext.xml    # XML documentation
+│   └── joints_ext.pdb    # Debug symbols
+├── acc_ext/              # Accessories calculations (reserved)
+└── suspacc_ext.sln       # Visual Studio solution file
 ```
 
 ## Modules
@@ -214,11 +224,56 @@ Dim utilization As Double = TorqueCalc.VDI_UtilizationFactor(stress, 940)
 
 The library targets .NET Framework 4.8 and is written in Visual Basic.
 
-```powershell
-# Build the project
-msbuild susp_ext\susp_ext.vbproj /p:Configuration=Release
+### Build from Command Line
 
-# Or open in Visual Studio and build
+```powershell
+# Build the entire solution
+msbuild suspacc_ext.sln /p:Configuration=Release
+
+# Build individual projects
+msbuild susp_ext\susp_ext.vbproj /p:Configuration=Release
+msbuild joints_ext\joints_ext.vbproj /p:Configuration=Release
+
+# Clean the solution
+msbuild suspacc_ext.sln /t:Clean
+```
+
+### Build from Visual Studio
+
+Open `suspacc_ext.sln` in Visual Studio 2022 or later and build the solution.
+
+### Using MSBuild (if not in PATH)
+
+```powershell
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" suspacc_ext.sln /p:Configuration=Release
+```
+
+## Using the Libraries
+
+### Reference the DLLs
+
+Add references to the compiled DLLs in your project:
+- `released\susp_ext.dll` - For suspension and tyre calculations
+- `released\joints_ext.dll` - For bolted joint calculations
+
+### Import Namespaces
+
+```vb
+Imports susp_ext
+Imports joints_ext
+```
+
+### Example Usage
+
+```vb
+' Tyre calculations
+Dim tyreData As DataTable = TyreCalc.PublishValue("205", "55", "R16", "7.0", True)
+
+' Spring calculations
+Dim springRate As Double = SpringCalc.SpringRate(80000, 50, 3.5, 8.5)
+
+' Bolted joint calculations
+Dim preload As Double = TorqueCalc.CalculateClamping(50, 0.15, 10)
 ```
 
 ## Output

@@ -1,0 +1,31 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "susp_ext", "susp_ext\susp_ext.vbproj", "{F8A5E6C3-9D4B-4E8A-B5C7-2F3A8D6E9C4B}"
+EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "joints_ext", "joints_ext\joints_ext.vbproj", "{A7D8F4E2-6B3C-4F9A-8E5D-1C2A9B7E4F6C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F8A5E6C3-9D4B-4E8A-B5C7-2F3A8D6E9C4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8A5E6C3-9D4B-4E8A-B5C7-2F3A8D6E9C4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8A5E6C3-9D4B-4E8A-B5C7-2F3A8D6E9C4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8A5E6C3-9D4B-4E8A-B5C7-2F3A8D6E9C4B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7D8F4E2-6B3C-4F9A-8E5D-1C2A9B7E4F6C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7D8F4E2-6B3C-4F9A-8E5D-1C2A9B7E4F6C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7D8F4E2-6B3C-4F9A-8E5D-1C2A9B7E4F6C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7D8F4E2-6B3C-4F9A-8E5D-1C2A9B7E4F6C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2E4A8C7D-5F9B-4A1E-8C3D-6B2F9E1A4C7D}
+	EndGlobalSection
+EndGlobal

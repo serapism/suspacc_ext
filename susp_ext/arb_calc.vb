@@ -384,4 +384,220 @@ Public Class ARBCalc
         Return resultTable
     End Function
 
+    ''' <summary>
+    ''' Performs anti-roll bar design validation and geometry checks.
+    ''' </summary>
+    ''' <param name="hardpointsTable">DataTable containing hardpoint coordinates with columns: PointName, X, Y, Z</param>
+    ''' <returns>DataTable with design check results and recommendations</returns>
+    ''' <remarks>
+    ''' Required hardpoints:
+    ''' - droplink_to_mount: Upper droplink mounting point
+    ''' - droplink_to_arb: Lower droplink to ARB connection point
+    ''' - arb_bush: ARB bushing mounting point
+    ''' - wheel_ctr: Wheel center point
+    ''' 
+    ''' Validates:
+    ''' - Droplink angles (should be within 5° of vertical)
+    ''' - ARB arm length (recommended 240-260mm)
+    ''' - Load transfer efficiency (target >99.25%)
+    ''' - Geometry optimization recommendations
+    ''' </remarks>
+    Public Shared Function DesignCheck(hardpointsTable As DataTable) As DataTable
+        Dim resultTable As New DataTable()
+        resultTable.Columns.Add("Parameter", GetType(String))
+        resultTable.Columns.Add("Value", GetType(String))
+        resultTable.Columns.Add("Unit", GetType(String))
+        resultTable.Columns.Add("Status", GetType(String))
+
+        Try
+            ' Validate input table structure
+            If hardpointsTable Is Nothing Then
+                Throw New ArgumentNullException("hardpointsTable", "Input DataTable cannot be null")
+            End If
+
+            If Not (hardpointsTable.Columns.Contains("PointName") AndAlso _
+                    hardpointsTable.Columns.Contains("X") AndAlso _
+                    hardpointsTable.Columns.Contains("Y") AndAlso _
+                    hardpointsTable.Columns.Contains("Z")) Then
+                Throw New ArgumentException("DataTable must contain columns: PointName, X, Y, Z")
+            End If
+
+            ' Validate required hardpoints exist
+            Dim requiredPoints As String() = {"droplink_to_mount", "droplink_to_arb", "arb_bush", "wheel_ctr"}
+            For Each pointName As String In requiredPoints
+                Dim rows() As DataRow = hardpointsTable.Select($"PointName = '{pointName}'")
+                If rows.Length = 0 Then
+                    Throw New ArgumentException($"Required hardpoint '{pointName}' is missing from DataTable")
+                End If
+                
+                ' Validate coordinates are numeric
+                Dim row As DataRow = rows(0)
+                Dim x, y, z As Double
+                If Not (Double.TryParse(row("X").ToString(), x) AndAlso _
+                        Double.TryParse(row("Y").ToString(), y) AndAlso _
+                        Double.TryParse(row("Z").ToString(), z)) Then
+                    Throw New ArgumentException($"Coordinates for point '{pointName}' must be numeric")
+                End If
+            Next
+
+            ' Add header information
+            resultTable.Rows.Add("Design Check Report", "Anti-Roll Bar Geometry Validation", "", "INFO")
+            resultTable.Rows.Add("Chart Version", hardpointsTable.TableName, "", "INFO")
+            resultTable.Rows.Add("Check Date", Date.Today.ToString("yyyy-MM-dd"), "", "INFO")
+            resultTable.Rows.Add("", "", "", "")
+
+            ' Extract hardpoint coordinates
+            Dim droplinkMount As DataRow = hardpointsTable.Select("PointName = 'droplink_to_mount'")(0)
+            Dim droplinkARB As DataRow = hardpointsTable.Select("PointName = 'droplink_to_arb'")(0)
+            Dim arbBush As DataRow = hardpointsTable.Select("PointName = 'arb_bush'")(0)
+            Dim wheelCenter As DataRow = hardpointsTable.Select("PointName = 'wheel_ctr'")(0)
+
+            Dim ptDroplinkMount As Double() = {CDbl(droplinkMount("X")), CDbl(droplinkMount("Y")), CDbl(droplinkMount("Z"))}
+            Dim ptDroplinkARB As Double() = {CDbl(droplinkARB("X")), CDbl(droplinkARB("Y")), CDbl(droplinkARB("Z"))}
+            Dim ptARBBush As Double() = {CDbl(arbBush("X")), CDbl(arbBush("Y")), CDbl(arbBush("Z"))}
+            Dim ptWheelCenter As Double() = {CDbl(wheelCenter("X")), CDbl(wheelCenter("Y")), CDbl(wheelCenter("Z"))}
+
+            ' Calculate droplink length
+            Dim droplinkLength As Double = Math.Sqrt( _
+                Math.Pow(ptDroplinkMount(0) - ptDroplinkARB(0), 2) + _
+                Math.Pow(ptDroplinkMount(1) - ptDroplinkARB(1), 2) + _
+                Math.Pow(ptDroplinkMount(2) - ptDroplinkARB(2), 2))
+            resultTable.Rows.Add("Droplink Length", droplinkLength.ToString("F2"), "mm", "MEASURED")
+
+            ' Calculate droplink 3D angle from vertical
+            Dim verticalRef As Double() = {ptDroplinkARB(0), ptDroplinkARB(1), ptDroplinkMount(2) - 100}
+            If ptDroplinkMount(2) > ptDroplinkARB(2) Then
+                verticalRef = {ptDroplinkMount(0), ptDroplinkMount(1), ptDroplinkMount(2) - 100}
+            End If
+
+            Dim droplink3DAngle As Double = CalculateAngleBetween3Points(ptDroplinkMount, ptDroplinkARB, verticalRef)
+            Dim angleStatus As String = If(droplink3DAngle > 5, "WARNING", "OK")
+            resultTable.Rows.Add("Droplink 3D Angle", droplink3DAngle.ToString("F2"), "deg", angleStatus)
+            
+            If droplink3DAngle > 5 Then
+                resultTable.Rows.Add("Recommendation", "Angle deviation exceeds 5°. Review droplink geometry", "", "WARNING")
+            End If
+
+            ' Calculate 2D projections (XZ plane, Y=0)
+            Dim ptDroplinkMount2D As Double() = {ptDroplinkMount(0), ptDroplinkMount(2)}
+            Dim ptDroplinkARB2D As Double() = {ptDroplinkARB(0), ptDroplinkARB(2)}
+            Dim ptARBBush2D As Double() = {ptARBBush(0), ptARBBush(2)}
+
+            ' Calculate droplink angle to vertical in 2D
+            Dim deltaZ As Double = ptDroplinkMount2D(1) - ptDroplinkARB2D(1)
+            Dim deltaX As Double = ptDroplinkMount2D(0) - ptDroplinkARB2D(0)
+            Dim droplinkAngle2D As Double = Math.Abs(Math.Atan2(deltaX, deltaZ) * (180 / Math.PI))
+            resultTable.Rows.Add("Droplink Angle (2D Vertical)", droplinkAngle2D.ToString("F2"), "deg", "MEASURED")
+
+            ' Calculate optimized droplink mount position (perpendicular to ARB arm)
+            Dim arbArmVectorX As Double = ptDroplinkARB2D(0) - ptARBBush2D(0)
+            Dim arbArmVectorZ As Double = ptDroplinkARB2D(1) - ptARBBush2D(1)
+            Dim perpVectorX As Double = -arbArmVectorZ
+            Dim perpVectorZ As Double = arbArmVectorX
+            Dim perpLength As Double = Math.Sqrt(perpVectorX * perpVectorX + perpVectorZ * perpVectorZ)
+            Dim optimalMountX As Double = ptDroplinkARB2D(0) + (perpVectorX / perpLength) * 100
+            Dim optimalMountZ As Double = ptDroplinkARB2D(1) + (perpVectorZ / perpLength) * 100
+            Dim ptOptimalMount2D As Double() = {optimalMountX, optimalMountZ}
+
+            Dim optimalAngle As Double = Math.Abs(Math.Atan2((optimalMountX - ptDroplinkARB2D(0)), (optimalMountZ - ptDroplinkARB2D(1))) * (180 / Math.PI))
+            resultTable.Rows.Add("Optimized Droplink Angle", optimalAngle.ToString("F2"), "deg", "OPTIMAL")
+
+            Dim angleDelta As Double = Math.Abs(droplinkAngle2D - optimalAngle)
+            Dim optimizationStatus As String = If(angleDelta > 5, "WARNING", "OK")
+            resultTable.Rows.Add("Angle Delta (Actual vs Optimal)", angleDelta.ToString("F2"), "deg", optimizationStatus)
+
+            ' ARB arm geometry
+            resultTable.Rows.Add("", "", "", "")
+            resultTable.Rows.Add("ARB Arm Geometry", "Analysis", "", "SECTION")
+            
+            Dim armLength As Double = Math.Sqrt( _
+                Math.Pow(ptARBBush2D(0) - ptDroplinkARB2D(0), 2) + _
+                Math.Pow(ptARBBush2D(1) - ptDroplinkARB2D(1), 2))
+            Dim armStatus As String = If(armLength >= 240 AndAlso armLength <= 260, "OK", "INFO")
+            resultTable.Rows.Add("ARB Arm Length", armLength.ToString("F1"), "mm", armStatus)
+            resultTable.Rows.Add("Recommended Range", "240 - 260", "mm", "GUIDELINE")
+
+            Dim armAngle As Double = Math.Abs(Math.Atan2(ptDroplinkARB2D(1) - ptARBBush2D(1), ptDroplinkARB2D(0) - ptARBBush2D(0)) * (180 / Math.PI))
+            resultTable.Rows.Add("ARB Arm Angle (Horizontal)", armAngle.ToString("F1"), "deg", "MEASURED")
+
+            ' Span lengths
+            Dim bushSpan As Double = Math.Abs(ptARBBush(1) * 2)
+            Dim endToEndSpan As Double = Math.Abs(ptDroplinkARB(1) * 2)
+            resultTable.Rows.Add("ARB Bush Span Length", bushSpan.ToString("F1"), "mm", "MEASURED")
+            resultTable.Rows.Add("ARB End-to-End Span", endToEndSpan.ToString("F1"), "mm", "MEASURED")
+
+            ' Load transfer efficiency
+            resultTable.Rows.Add("", "", "", "")
+            resultTable.Rows.Add("Load Transfer Efficiency", "Analysis", "", "SECTION")
+            
+            Dim loadTransferMount As Double = Math.Cos(droplinkAngle2D * Math.PI / 180)
+            Dim loadTransferARB As Double = Math.Cos(angleDelta * Math.PI / 180)
+            Dim totalEfficiency As Double = loadTransferMount * loadTransferARB * 100
+            
+            resultTable.Rows.Add("Efficiency Droplink to Mount", (loadTransferMount * 100).ToString("F2"), "%", "CALCULATED")
+            resultTable.Rows.Add("Efficiency Droplink to ARB", (loadTransferARB * 100).ToString("F2"), "%", "CALCULATED")
+            
+            Dim efficiencyStatus As String = If(totalEfficiency >= 99.25, "OK", "WARNING")
+            resultTable.Rows.Add("Total Load Transfer Efficiency", totalEfficiency.ToString("F2"), "%", efficiencyStatus)
+            resultTable.Rows.Add("Target Efficiency", ">= 99.25", "%", "GUIDELINE")
+
+            ' ARB stiffness estimation (using default 32mm diameter)
+            resultTable.Rows.Add("", "", "", "")
+            resultTable.Rows.Add("Stiffness Estimation", "32mm Diameter Steel Bar", "", "SECTION")
+            
+            Dim shearModulus As Double = 80000 ' N/mm² for steel
+            Dim diameter As Double = 32 ' mm
+            Dim polarMoment As Double = (Math.PI * Math.Pow(diameter, 4)) / 32
+            Dim centralStiffness As Double = (shearModulus * polarMoment) / bushSpan
+            Dim armStiffness As Double = (shearModulus * polarMoment) / armLength
+            Dim equivalentStiffness As Double = 1 / ((2 / armStiffness) + (1 / centralStiffness))
+            Dim rollStiffness As Double = equivalentStiffness / (armLength * armLength)
+            
+            resultTable.Rows.Add("Estimated Roll Stiffness", rollStiffness.ToString("F2"), "N/mm", "ESTIMATED")
+            resultTable.Rows.Add("Shear Modulus (Steel)", shearModulus.ToString("F0"), "N/mm²", "ASSUMED")
+
+            ' Track width
+            Dim trackWidth As Double = Math.Abs(ptWheelCenter(1) * 2)
+            resultTable.Rows.Add("Vehicle Track Width", trackWidth.ToString("F1"), "mm", "MEASURED")
+
+            ' Summary
+            resultTable.Rows.Add("", "", "", "")
+            resultTable.Rows.Add("Design Check Summary", "Overall Status", "", "SUMMARY")
+            
+            Dim overallStatus As String = "OK"
+            If droplink3DAngle > 5 OrElse angleDelta > 5 OrElse totalEfficiency < 99.25 Then
+                overallStatus = "REVIEW REQUIRED"
+            End If
+            resultTable.Rows.Add("Overall Assessment", overallStatus, "", overallStatus)
+
+        Catch ex As Exception
+            resultTable.Rows.Add("Error", ex.Message, "", "ERROR")
+        End Try
+
+        Return resultTable
+    End Function
+
+    ''' <summary>
+    ''' Calculates the angle between three 3D points.
+    ''' </summary>
+    Private Shared Function CalculateAngleBetween3Points(p1() As Double, p2() As Double, p3() As Double) As Double
+        ' Vector from p2 to p1
+        Dim v1() As Double = {p1(0) - p2(0), p1(1) - p2(1), p1(2) - p2(2)}
+        ' Vector from p2 to p3
+        Dim v2() As Double = {p3(0) - p2(0), p3(1) - p2(1), p3(2) - p2(2)}
+        
+        ' Dot product
+        Dim dotProduct As Double = v1(0) * v2(0) + v1(1) * v2(1) + v1(2) * v2(2)
+        
+        ' Magnitudes
+        Dim mag1 As Double = Math.Sqrt(v1(0) * v1(0) + v1(1) * v1(1) + v1(2) * v1(2))
+        Dim mag2 As Double = Math.Sqrt(v2(0) * v2(0) + v2(1) * v2(1) + v2(2) * v2(2))
+        
+        ' Angle in radians, then convert to degrees
+        Dim angleRad As Double = Math.Acos(dotProduct / (mag1 * mag2))
+        Return angleRad * (180 / Math.PI)
+    End Function
+
+End Function
+
 End Class

@@ -17,13 +17,20 @@ suspacc_ext/
 ├── joints_ext/            # Bolted joint calculations
 │   ├── torque_calc.vb    # Torque and VDI 2230 calculations
 │   └── joints_ext.vbproj # VB.NET project file
+├── steering_ext/          # Steering geometry calculations (NEW)
+│   ├── tcd_calc.vb       # Turning circle and Ackermann steering calculations
+│   ├── steering_ext.vbproj # VB.NET project file
+│   └── README.md         # Steering module documentation
 ├── released/              # Compiled release binaries
 │   ├── susp_ext.dll      # Suspension library
 │   ├── susp_ext.xml      # XML documentation
 │   ├── susp_ext.pdb      # Debug symbols
 │   ├── joints_ext.dll    # Bolted joints library
 │   ├── joints_ext.xml    # XML documentation
-│   └── joints_ext.pdb    # Debug symbols
+│   ├── joints_ext.pdb    # Debug symbols
+│   ├── steering_ext.dll  # Steering library
+│   ├── steering_ext.xml  # XML documentation
+│   └── steering_ext.pdb  # Debug symbols
 ├── acc_ext/              # Accessories calculations (reserved)
 └── suspacc_ext.sln       # Visual Studio solution file
 ```
@@ -189,12 +196,69 @@ Dim utilization As Double = TorqueCalc.VDI_UtilizationFactor(stress, 940)
 
 ---
 
-## Standards & References
+### 4. Steering Geometry Calculations (`steering_ext/tcd_calc.vb`) **NEW**
+
+Steering geometry calculations including turning circle diameter and Ackermann steering percentage analysis.
+
+**Key Functions:**
+
+**Turning Circle Diameter:**
+- `CalculateKerbToKerbTurningCircle` - Kerb-to-kerb turning circle diameter
+  - Formula: R = L / sin(θ_outer), Diameter = 2×(R + TW/2)
+  - Parameters: Wheelbase (1500-4500mm), track width (1000-2500mm), steer angle (0-90°), tyre width (100-400mm)
+  - Returns: Diameter in meters
+
+**Ackermann Steering:**
+- `CalculateAckermannPercentage` - Ackermann steering compliance percentage
+  - Formula: θ_ideal = atan(L/(W + L/tan(θ_outer))), % = (θ_ideal/θ_actual)×100
+  - Measures steering geometry compliance: 100% = perfect Ackermann, <100% = understeer, >100% = oversteer
+  - Parameters: Wheelbase, track width, outer wheel angle, inner wheel angle
+  - Returns: Percentage value (0-150 typical range)
+
+**Error Handling:**
+- Comprehensive input validation with 22 validation checks
+- Typical parameter ranges enforced:
+  - Wheelbase: 1500-4500 mm
+  - Track width: 1000-2500 mm
+  - Steer angles: 0-90° (typical: 25-45°)
+  - Tyre width: 100-400 mm
+- Throws ArgumentException with descriptive messages for invalid inputs
+
+**Vehicle Reference Ranges:**
+| Parameter | Typical Range |
+|-----------|---------------|
+| Wheelbase | 2400-3200 mm (sedan), 2800-4000 mm (SUV) |
+| Track Width | 1400-1700 mm |
+| Max Steer Angle | 30-40° (typical) |
+| Ackermann Ratio | 95-105% (neutral), <100% (understeer), >100% (oversteer) |
+
+**Usage Example:**
+```vb
+' Calculate turning circle diameter
+Dim diameter As Double = TCDCalc.CalculateKerbToKerbTurningCircle(2800, 1506, 31.42, 205)
+' Result: ~5.86 meters
+
+' Calculate Ackermann steering percentage
+Dim ackermannPercent As Double = TCDCalc.CalculateAckermannPercentage(2800, 1506, 31.42, 37.58)
+' Result: ~64.96% (oversteer characteristic)
+```
+
+**Standards:**
+- SAE J670 (Vehicle Dynamics Terminology)
+- ISO 3691-4 (Industrial trucks - Safety of driverless trucks and automated functions)
+- Based on Ackermann steering geometry theory
+
+---
+
+
 
 - **ISO 898-1** - Mechanical properties of fasteners (stress area calculation)
+- **ISO 3691-4** - Industrial trucks - Safety of driverless trucks and automated functions
 - **ISO 11891:2012** - Hot formed helical compression springs — Technical specifications
+- **SAE J670** - Vehicle Dynamics Terminology
 - **VDI 2230 Part 1 (2015)** - Systematic calculation of highly stressed bolted joints
 - **ETRTO** - European Tyre and Rim Technical Organisation standards
+- **Ackermann Steering Geometry** - Classical vehicle steering theory
 
 ## Technical Notes
 
@@ -220,6 +284,15 @@ Dim utilization As Double = TorqueCalc.VDI_UtilizationFactor(stress, 940)
   - Static load: < 0.9
   - Dynamic load: Requires fatigue analysis per VDI 2230
 
+### Steering Geometry Calculations
+- **Turning Circle Diameter**: Calculated using outer wheel angle; includes half tyre width contribution
+- **Ackermann Steering**: Compares actual steering geometry to ideal Ackermann line
+  - 100% = Perfect geometric steering (rare in practice)
+  - <100% = Understeer characteristic (safe, understeer at limits)
+  - >100% = Oversteer characteristic (more responsive, oversteer at limits)
+- **Units**: All angles in degrees, distances in millimeters, diameter in meters
+- **Validation ranges**: Enforced to catch unrealistic vehicle specifications
+
 ## Building
 
 The library targets .NET Framework 4.8 and is written in Visual Basic.
@@ -233,6 +306,7 @@ msbuild suspacc_ext.sln /p:Configuration=Release
 # Build individual projects
 msbuild susp_ext\susp_ext.vbproj /p:Configuration=Release
 msbuild joints_ext\joints_ext.vbproj /p:Configuration=Release
+msbuild steering_ext\steering_ext.vbproj /p:Configuration=Release
 
 # Clean the solution
 msbuild suspacc_ext.sln /t:Clean
@@ -255,12 +329,14 @@ Open `suspacc_ext.sln` in Visual Studio 2022 or later and build the solution.
 Add references to the compiled DLLs in your project:
 - `released\susp_ext.dll` - For suspension and tyre calculations
 - `released\joints_ext.dll` - For bolted joint calculations
+- `released\steering_ext.dll` - For steering geometry calculations
 
 ### Import Namespaces
 
 ```vb
 Imports susp_ext
 Imports joints_ext
+Imports steering_ext
 ```
 
 ### Example Usage
@@ -274,6 +350,10 @@ Dim springRate As Double = SpringCalc.SpringRate(80000, 50, 3.5, 8.5)
 
 ' Bolted joint calculations
 Dim preload As Double = TorqueCalc.CalculateClamping(50, 0.15, 10)
+
+' Steering geometry calculations
+Dim turningCircle As Double = TCDCalc.CalculateKerbToKerbTurningCircle(2800, 1506, 31.42, 205)
+Dim ackermannPercent As Double = TCDCalc.CalculateAckermannPercentage(2800, 1506, 31.42, 37.58)
 ```
 
 ## Output

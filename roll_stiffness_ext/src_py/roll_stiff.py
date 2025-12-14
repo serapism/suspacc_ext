@@ -150,19 +150,35 @@ class SuspensionCalculatorGUI:
         self.initialize_default_values()
         
     def create_header(self, parent):
-        """Create header with DESIGN and BENCHMARK buttons"""
+        """Create header with CEER logo and version information"""
         header_frame = ttk.Frame(parent)
         header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
         
-        # Logo placeholder
-        logo_frame = ttk.Frame(header_frame, relief=tk.RIDGE, borderwidth=2, width=80, height=30)
-        logo_frame.grid(row=0, column=0, padx=5)
-        logo_label = ttk.Label(logo_frame, text="HONDA", foreground="red")
-        logo_label.pack()
+        # CEER Logo
+        logo_frame = ttk.Frame(header_frame, relief=tk.RIDGE, borderwidth=2, width=100, height=40)
+        logo_frame.grid(row=0, column=0, padx=5, rowspan=2)
+        logo_frame.grid_propagate(False)
+        logo_label = tk.Label(logo_frame, text="CEER", font=('Arial', 16, 'bold'), 
+                             foreground='#003366', bg='white')
+        logo_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
         
         # Mode buttons
         ttk.Button(header_frame, text="DESIGN", width=15).grid(row=0, column=1, padx=5)
         ttk.Button(header_frame, text="BENCHMARK", width=15).grid(row=0, column=2, padx=5)
+        
+        # Version and creator information (right side)
+        info_frame = ttk.Frame(header_frame)
+        info_frame.grid(row=0, column=3, padx=20, sticky=tk.E, rowspan=2)
+        
+        ttk.Label(info_frame, text="Created by: Nirmal", 
+                 font=('Arial', 9, 'italic'), foreground='#555555').pack(anchor=tk.E)
+        ttk.Label(info_frame, text="Version: 1.0.0", 
+                 font=('Arial', 9), foreground='#555555').pack(anchor=tk.E)
+        ttk.Label(info_frame, text="Release Date: December 2024", 
+                 font=('Arial', 9), foreground='#555555').pack(anchor=tk.E)
+        
+        # Configure column weight to push info to the right
+        header_frame.columnconfigure(3, weight=1)
         
     def create_ride_frequency_tab(self):
         """Create Ride Frequency tab - Redesigned for simplicity and beauty"""

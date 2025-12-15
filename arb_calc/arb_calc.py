@@ -32,6 +32,16 @@ def area_moment_round(d_od: float, d_id: float = 0.0) -> float:
     return math.pi / 64.0 * (d_od ** 4 - d_id ** 4)
 
 
+def area_moment_rectangular(base: float, height: float) -> float:
+    """Area moment of inertia I for a rectangular blade section about horizontal axis, m^4.
+    
+    I = b*h^3 / 12  (bending about the base, height is vertical dimension).
+    """
+    if base <= 0 or height <= 0:
+        raise ValueError("Base and height must be positive")
+    return base * (height ** 3) / 12.0
+
+
 def torsion_stiffness(
     shear_modulus: float,
     d_od: float,
@@ -49,7 +59,7 @@ def torsion_stiffness(
     return shear_modulus * J / (center_length * arm_length ** 2)
 
 
-def cantilever_stiffness(
+def cantilever_stiffness_round(
     young_modulus: float,
     d_od: float,
     arm_length: float,
@@ -63,6 +73,54 @@ def cantilever_stiffness(
         raise ValueError("Arm length must be positive")
     I = area_moment_round(d_od, d_id)
     return 3.0 * young_modulus * I / (arm_length ** 3)
+
+
+def cantilever_stiffness_blade_stiff(
+    young_modulus: float,
+    base: float,
+    height: float,
+    arm_length: float,
+) -> float:
+    """Vertical stiffness of a blade arm in stiff orientation (on edge, Suspension Secrets).
+    
+    Blade vertical (height is the tall dimension), base is horizontal width.
+    k = 3*E*I / L^3,  I = b*h^3/12
+    """
+    if arm_length <= 0:
+        raise ValueError("Arm length must be positive")
+    I = area_moment_rectangular(base, height)
+    return 3.0 * young_modulus * I / (arm_length ** 3)
+
+
+def cantilever_stiffness_blade_soft(
+    young_modulus: float,
+    base: float,
+    height: float,
+    arm_length: float,
+) -> float:
+    """Vertical stiffness of a blade arm_round in soft orientation (flat, Suspension Secrets).
+    
+    Blade horizontal (base is now the tall dimension for bending), height is the thin vertical.
+    k = 3*E*I / L^3,  I = h*b^3/12 (swapped dimensions)
+    """
+    if arm_length <= 0:
+        raise ValueError("Arm length must be positive")
+    I = area_moment_rectangular(height, base)  # swapped
+    return 3.0 * young_modulus * I / (arm_length ** 3)
+
+
+def cantilever_stiffness(
+    young_modulus: float,
+    d_od: float,
+    arm_length: float,
+    d_id: float = 0.0,
+) -> float:
+    """Vertical stiffness of a round-section cantilever arm (Suspension Secrets).
+    
+    Legacy wrapper for round section. Use cantilever_stiffness_round() directly.
+    k = 3*E*I / L^3
+    """
+    return cantilever_stiffness_round(young_modulus, d_od, arm_length, d_id)
 
 
 def series_rate(*rates: float) -> float:
@@ -176,6 +234,69 @@ if __name__ == "__main__":
     # Simple usage example with steel bar and passenger-car dimensions (SI units).
     steel_E = 210e9  # Pa
     steel_G = 80e9  # Pa
+
+    # Test arb_tip_rate with component breakdown
+    print("=" * 60)
+    print("ARB TIP RATE TEST - Component Breakdown")
+    print("=" * 60)
+    
+    test_d_od = 0.022  # 22 mm
+    test_center = 0.9  # 900 mm
+    test_arm = 0.25    # 250 mm
+    test_d_id = 0.0    # solid bar
+    
+    # Calculate individual components
+    k_torsion = torsion_stiffness(steel_G, test_d_od, test_center, test_arm, test_d_id)
+    k_arm_left = cantilever_stiffness_round(steel_E, test_d_od, test_arm, test_d_id)
+    k_arm_right = k_arm_left  # symmetric
+    
+    # Manual series calculation
+    k_manual = series_rate(k_arm_left, k_torsion, k_arm_right)
+    
+    # Using arb_tip_rate function
+    k_tip = arb_tip_rate(steel_G, steel_E, test_d_od, test_center, test_arm, test_d_id)
+    
+    print(f"Bar diameter: {test_d_od*1000:.1f} mm")
+    print(f"Center length: {test_center*1000:.0f} mm")
+    print(f"Arm length: {test_arm*1000:.0f} mm")
+    print(f"\nComponent stiffnesses (N/m):")
+    print(f"  Left arm (cantilever):  {k_arm_left:,.0f}")
+    print(f"  Torsion section:        {k_torsion:,.0f}")
+    print(f"  Right arm (cantilever): {k_arm_right:,.0f}")
+    print(f"\nSeries combination:")
+    print(f"  Manual calc:    {k_manual:,.0f} N/m")
+    print(f"  arb_tip_rate(): {k_tip:,.0f} N/m")
+    print(f"  Match: {abs(k_manual - k_tip) < 0.01}")
+    
+    # Test with blade arms
+    print("\n" + "=" * 60)
+    print("BLADE ARM COMPARISON")
+    print("=" * 60)
+    
+    blade_base = 0.050   # 50 mm
+    blade_height = 0.010 # 10 mm
+    
+    k_blade_stiff = cantilever_stiffness_blade_stiff(steel_E, blade_base, blade_height, test_arm)
+    k_blade_soft = cantilever_stiffness_blade_soft(steel_E, blade_base, blade_height, test_arm)
+    
+    k_tip_blade_stiff = arb_tip_rate(
+        steel_G, steel_E, test_d_od, test_center, test_arm, test_d_id,
+        arm_rate_left=k_blade_stiff, arm_rate_right=k_blade_stiff
+    )
+    
+    k_tip_blade_soft = arb_tip_rate(
+        steel_G, steel_E, test_d_od, test_center, test_arm, test_d_id,
+        arm_rate_left=k_blade_soft, arm_rate_right=k_blade_soft
+    )
+    
+    print(f"Blade dimensions: {blade_base*1000:.0f} x {blade_height*1000:.0f} mm")
+    print(f"Blade stiff (on edge): {k_blade_stiff:,.0f} N/m → tip rate {k_tip_blade_stiff:,.0f} N/m")
+    print(f"Blade soft (flat):     {k_blade_soft:,.0f} N/m → tip rate {k_tip_blade_soft:,.0f} N/m")
+    print(f"Stiffness ratio: {k_blade_stiff/k_blade_soft:.1f}x")
+    
+    print("\n" + "=" * 60)
+    print("FULL AXLE CALCULATIONS")
+    print("=" * 60 + "\n")
 
     front = arb_axle_summary(
         shear_modulus=steel_G,

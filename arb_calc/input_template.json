@@ -1,0 +1,79 @@
+{
+  "vehicle": {
+    "total_mass": 1450,
+    "sprung_mass": 1300,
+    "wheelbase": 2.65,
+    "front_track": 1.55,
+    "rear_track": 1.53,
+    "front_weight": 7850,
+    "rear_weight": 6400,
+    "total_cg_height": 0.52,
+    "sprung_cg_height": 0.55,
+    "front_rc_height": 0.05,
+    "rear_rc_height": 0.08,
+    "front_unsprung_mass": 70,
+    "rear_unsprung_mass": 80
+  },
+  "front_axle": {
+    "ride_frequency": 1.2,
+    "motion_ratio": 0.95,
+    "track_width": 1.55,
+    "arb_shear_modulus": 80000000000,
+    "arb_young_modulus": 210000000000,
+    "arb_center_length": 0.9,
+    "arb_arm_length": 0.25,
+    "arb_d_od": 0.022,
+    "arb_d_id": 0.0
+  },
+  "rear_axle": {
+    "ride_frequency": 1.35,
+    "motion_ratio": 0.9,
+    "track_width": 1.53,
+    "arb_shear_modulus": 80000000000,
+    "arb_young_modulus": 210000000000,
+    "arb_center_length": 0.9,
+    "arb_arm_length": 0.22,
+    "arb_d_od": 0.0135,
+    "arb_d_id": 0.0
+  },
+  "tire_front": {
+    "cornering_stiffness": 80000,
+    "camber_stiffness": 8000,
+    "vertical_stiffness": 200000,
+    "pneumatic_trail": 0.015
+  },
+  "tire_rear": {
+    "cornering_stiffness": 85000,
+    "camber_stiffness": 8500,
+    "vertical_stiffness": 210000,
+    "pneumatic_trail": 0.014
+  },
+  "roll_gradient_target": {
+    "target_deg_per_g_min": 3.5,
+    "target_deg_per_g_max": 3.8,
+    "front_aux_percent_max": 60,
+    "rear_aux_percent_max": 25
+  },
+  "kc_constraints": {
+    "roll_steer_front_min": 3.0,
+    "roll_steer_front_max": 6.5,
+    "roll_steer_rear_min": -8.0,
+    "roll_steer_rear_max": -3.0,
+    "roll_camber_front_min": 80.0,
+    "roll_camber_front_max": 90.0,
+    "roll_camber_rear_min": 50.0,
+    "roll_camber_rear_max": 65.0,
+    "lateral_force_steer_compliance_front_min": 0.008,
+    "lateral_force_steer_compliance_front_max": 0.05,
+    "lateral_force_steer_compliance_rear_min": 0.015,
+    "lateral_force_steer_compliance_rear_max": 0.04,
+    "lateral_force_camber_compliance_front_min": 0.1,
+    "lateral_force_camber_compliance_front_max": 0.3,
+    "lateral_force_camber_compliance_rear_min": 0.15,
+    "lateral_force_camber_compliance_rear_max": 0.4,
+    "aligning_torque_steer_compliance_front_min": 0.2,
+    "aligning_torque_steer_compliance_front_max": 0.4,
+    "aligning_torque_steer_compliance_rear_min": 0.06,
+    "aligning_torque_steer_compliance_rear_max": 0.1
+  }
+}

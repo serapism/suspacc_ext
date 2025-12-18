@@ -1,7 +1,15 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog, filedialog
 import math
+import json
+import os
 from typing import Dict, Optional
+from datetime import datetime
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
 
 
 class ARBCalculator:
@@ -333,6 +341,10 @@ class SuspensionCalculatorGUI:
         self.arb_roll_stiffness_fr_required = 0.0
         self.arb_roll_stiffness_rr_required = 0.0
         
+        # Configuration file path
+        self.config_file = os.path.join(os.path.dirname(__file__), 'saved_configs.json')
+        self.saved_configs = self.load_configurations()
+        
         # Create main container
         main_frame = ttk.Frame(root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -378,6 +390,21 @@ class SuspensionCalculatorGUI:
         # Mode buttons
         ttk.Button(header_frame, text="DESIGN", width=15).grid(row=0, column=1, padx=5)
         ttk.Button(header_frame, text="BENCHMARK", width=15).grid(row=0, column=2, padx=5)
+        
+        # Configuration controls
+        config_frame = ttk.Frame(header_frame)
+        config_frame.grid(row=1, column=1, columnspan=2, pady=5)
+        
+        ttk.Label(config_frame, text="Saved Configs:").pack(side=tk.LEFT, padx=5)
+        self.config_dropdown = ttk.Combobox(config_frame, width=20, state='readonly')
+        self.config_dropdown.pack(side=tk.LEFT, padx=5)
+        self.config_dropdown.bind('<<ComboboxSelected>>', self.load_selected_config)
+        self.update_config_dropdown()
+        
+        ttk.Button(config_frame, text="💾 Save New", width=12, command=self.save_configuration).pack(side=tk.LEFT, padx=2)
+        ttk.Button(config_frame, text="📝 Update", width=12, command=self.update_configuration).pack(side=tk.LEFT, padx=2)
+        ttk.Button(config_frame, text="🗑 Delete", width=12, command=self.delete_configuration).pack(side=tk.LEFT, padx=2)
+        ttk.Button(config_frame, text="📊 Export Excel", width=12, command=self.export_to_excel).pack(side=tk.LEFT, padx=2)
         
         # Version and creator information (right side)
         info_frame = ttk.Frame(header_frame)
@@ -951,6 +978,21 @@ class SuspensionCalculatorGUI:
                  foreground='blue').pack(anchor=tk.W, pady=2)
         ttk.Label(info_frame, text="• Includes bending and torsional energy in all sections", 
                  foreground='blue').pack(anchor=tk.W, pady=2)
+        ttk.Label(info_frame, text="• Use 'Auto-Fill from ARB Design' to populate geometry and linkage inputs", 
+                 foreground='green').pack(anchor=tk.W, pady=2)
+        
+        # Auto-fill button
+        auto_frame = ttk.Frame(main_container)
+        auto_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(auto_frame, text="Select ARB:").pack(side=tk.LEFT, padx=5)
+        self.arb_select = ttk.Combobox(auto_frame, values=["Front", "Rear"], width=10, state='readonly')
+        self.arb_select.pack(side=tk.LEFT, padx=5)
+        self.arb_select.set("Front")
+        
+        ttk.Button(auto_frame, text="⬇ Auto-Fill from ARB Design Tab", 
+                  command=self.auto_fill_energy_from_arb_design,
+                  width=30).pack(side=tk.LEFT, padx=5)
         
         # Input sections container
         inputs_container = ttk.Frame(main_container)
@@ -993,6 +1035,13 @@ class SuspensionCalculatorGUI:
         self.energy_stroke.grid(row=5, column=1, padx=5)
         ttk.Label(geom_frame, text="mm").grid(row=5, column=2)
         
+        ttk.Label(geom_frame, text="No. of Bends (One Side)").grid(row=6, column=0, sticky=tk.W, pady=3)
+        self.energy_num_bends = ttk.Entry(geom_frame, width=12)
+        self.energy_num_bends.grid(row=6, column=1, padx=5)
+        ttk.Label(geom_frame, text="-").grid(row=6, column=2)
+        ttk.Label(geom_frame, text="(2.5% reduction/bend)", font=('Arial', 8, 'italic'), 
+                 foreground='gray').grid(row=6, column=3, sticky=tk.W)
+        
         # Middle column - Material inputs
         middle_col = ttk.Frame(inputs_container)
         middle_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
@@ -1022,6 +1071,30 @@ class SuspensionCalculatorGUI:
         self.energy_G.grid(row=3, column=1, padx=5)
         ttk.Label(mat_frame, text="MPa").grid(row=3, column=2)
         
+        # Bush and Link inputs
+        bush_frame = ttk.LabelFrame(middle_col, text="BUSH & LINKAGE (from ARB Design)", padding="10")
+        bush_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(bush_frame, text="Bush Stiffness").grid(row=0, column=0, sticky=tk.W, pady=3)
+        self.energy_bush_stiffness = ttk.Entry(bush_frame, width=12)
+        self.energy_bush_stiffness.grid(row=0, column=1, padx=5)
+        ttk.Label(bush_frame, text="N/mm").grid(row=0, column=2)
+        
+        ttk.Label(bush_frame, text="Clamp Span").grid(row=1, column=0, sticky=tk.W, pady=3)
+        self.energy_clamp_span_arb = ttk.Entry(bush_frame, width=12)
+        self.energy_clamp_span_arb.grid(row=1, column=1, padx=5)
+        ttk.Label(bush_frame, text="mm").grid(row=1, column=2)
+        
+        ttk.Label(bush_frame, text="Eye Span").grid(row=2, column=0, sticky=tk.W, pady=3)
+        self.energy_eye_span = ttk.Entry(bush_frame, width=12)
+        self.energy_eye_span.grid(row=2, column=1, padx=5)
+        ttk.Label(bush_frame, text="mm").grid(row=2, column=2)
+        
+        ttk.Label(bush_frame, text="Lever Ratio (σ)").grid(row=3, column=0, sticky=tk.W, pady=3)
+        self.energy_lever_ratio = ttk.Entry(bush_frame, width=12)
+        self.energy_lever_ratio.grid(row=3, column=1, padx=5)
+        ttk.Label(bush_frame, text="-").grid(row=3, column=2)
+        
         # Calculate button
         calc_frame = ttk.Frame(middle_col)
         calc_frame.pack(fill=tk.X, pady=15)
@@ -1044,10 +1117,52 @@ class SuspensionCalculatorGUI:
         rates_frame = ttk.LabelFrame(results_left, text="SPRING RATES", padding="5")
         rates_frame.pack(fill=tk.X, pady=5)
         
-        ttk.Label(rates_frame, text="Spring Rate:").grid(row=0, column=0, sticky=tk.W)
-        self.out_calc_rate = ttk.Label(rates_frame, text="-", font=('Arial', 9, 'bold'), foreground='blue')
+        ttk.Label(rates_frame, text="Spring Rate (Calculated):").grid(row=0, column=0, sticky=tk.W)
+        self.out_calc_rate = ttk.Label(rates_frame, text="-", font=('Arial', 9), foreground='blue')
         self.out_calc_rate.grid(row=0, column=1, padx=5)
         ttk.Label(rates_frame, text="N/mm").grid(row=0, column=2)
+        
+        ttk.Label(rates_frame, text="No. of Bends:").grid(row=1, column=0, sticky=tk.W)
+        self.out_num_bends = ttk.Label(rates_frame, text="-")
+        self.out_num_bends.grid(row=1, column=1, padx=5)
+        ttk.Label(rates_frame, text="-").grid(row=1, column=2)
+        
+        ttk.Label(rates_frame, text="Reduction Factor:").grid(row=2, column=0, sticky=tk.W)
+        self.out_reduction_factor = ttk.Label(rates_frame, text="-")
+        self.out_reduction_factor.grid(row=2, column=1, padx=5)
+        ttk.Label(rates_frame, text="%").grid(row=2, column=2)
+        
+        ttk.Label(rates_frame, text="Bar Rate (Adjusted):").grid(row=3, column=0, sticky=tk.W)
+        self.out_adjusted_bar_rate = ttk.Label(rates_frame, text="-", font=('Arial', 9, 'bold'), foreground='blue')
+        self.out_adjusted_bar_rate.grid(row=3, column=1, padx=5)
+        ttk.Label(rates_frame, text="N/mm").grid(row=3, column=2)
+        
+        ttk.Separator(rates_frame, orient=tk.HORIZONTAL).grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        
+        ttk.Label(rates_frame, text="Bush Stiffness (Input):").grid(row=5, column=0, sticky=tk.W)
+        self.out_bush_stiff = ttk.Label(rates_frame, text="-")
+        self.out_bush_stiff.grid(row=5, column=1, padx=5)
+        ttk.Label(rates_frame, text="N/mm").grid(row=5, column=2)
+        
+        ttk.Label(rates_frame, text="Bush Lever Ratio:").grid(row=6, column=0, sticky=tk.W)
+        self.out_bush_lever_ratio = ttk.Label(rates_frame, text="-")
+        self.out_bush_lever_ratio.grid(row=6, column=1, padx=5)
+        ttk.Label(rates_frame, text="-").grid(row=6, column=2)
+        
+        ttk.Label(rates_frame, text="Bush Stiff @ Eye (×LR²):").grid(row=7, column=0, sticky=tk.W)
+        self.out_bush_stiff_at_eye = ttk.Label(rates_frame, text="-")
+        self.out_bush_stiff_at_eye.grid(row=7, column=1, padx=5)
+        ttk.Label(rates_frame, text="N/mm").grid(row=7, column=2)
+        
+        ttk.Label(rates_frame, text="Eye Stiffness (Combined):").grid(row=8, column=0, sticky=tk.W)
+        self.out_eye_stiffness = ttk.Label(rates_frame, text="-", font=('Arial', 9, 'bold'), foreground='green')
+        self.out_eye_stiffness.grid(row=8, column=1, padx=5)
+        ttk.Label(rates_frame, text="N/mm").grid(row=8, column=2)
+        
+        ttk.Label(rates_frame, text="Wheel Rate (ARB):").grid(row=9, column=0, sticky=tk.W)
+        self.out_wheel_rate_arb = ttk.Label(rates_frame, text="-", font=('Arial', 10, 'bold'), foreground='red')
+        self.out_wheel_rate_arb.grid(row=9, column=1, padx=5)
+        ttk.Label(rates_frame, text="N/mm").grid(row=9, column=2)
         
         # Physical properties section
         phys_frame = ttk.LabelFrame(results_left, text="PHYSICAL PROPERTIES", padding="5")
@@ -1554,10 +1669,46 @@ class SuspensionCalculatorGUI:
         except Exception as e:
             messagebox.showerror("Error", f"Calculation error: {str(e)}")
     
-    def calculate_arb_energy_method(self):
-        """Calculate ARB stiffness using energy method"""
+    def auto_fill_energy_from_arb_design(self):
+        """Auto-populate ARB Energy Method inputs from ARB Design tab"""
         try:
-            # Get inputs
+            arb_type = self.arb_select.get()
+            
+            if arb_type == "Front":
+                # Get values from ARB Design Front
+                bush_stiff = self.arb_bush_stiffness_front.get()
+                clamp_span = self.arb_clamp_span_front.get()
+                eye_span = self.arb_eye_span_front.get()
+                lever_ratio = self.arb_lever_ratio_front.get()
+            else:  # Rear
+                # Get values from ARB Design Rear
+                bush_stiff = self.arb_bush_stiffness_rear.get()
+                clamp_span = self.arb_clamp_span_rear.get()
+                eye_span = self.arb_eye_span_rear.get()
+                lever_ratio = self.arb_lever_ratio_rear.get()
+            
+            # Fill in the energy tab fields
+            self.energy_bush_stiffness.delete(0, tk.END)
+            self.energy_bush_stiffness.insert(0, bush_stiff)
+            
+            self.energy_clamp_span_arb.delete(0, tk.END)
+            self.energy_clamp_span_arb.insert(0, clamp_span)
+            
+            self.energy_eye_span.delete(0, tk.END)
+            self.energy_eye_span.insert(0, eye_span)
+            
+            self.energy_lever_ratio.delete(0, tk.END)
+            self.energy_lever_ratio.insert(0, lever_ratio)
+            
+            messagebox.showinfo("Success", f"Auto-filled from ARB Design {arb_type} tab!")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to auto-fill: {str(e)}\\nPlease fill ARB Design tab first.")
+    
+    def calculate_arb_energy_method(self):
+        """Calculate ARB stiffness using energy method with combined eye stiffness"""
+        try:
+            # Get geometry inputs
             eyeball_span = float(self.energy_eyeball_span.get())
             shoulder_span = float(self.energy_shoulder_span.get())
             clamp_span = float(self.energy_clamp_span.get())
@@ -1569,10 +1720,39 @@ class SuspensionCalculatorGUI:
             E = float(self.energy_E.get())
             G = float(self.energy_G.get())
             
+            # Get number of bends
+            try:
+                num_bends = int(self.energy_num_bends.get())
+                if num_bends < 0:
+                    num_bends = 0
+            except:
+                num_bends = 0
+            
+            # Get bush and linkage parameters (optional)
+            try:
+                bush_stiffness = float(self.energy_bush_stiffness.get())
+            except:
+                bush_stiffness = 0
+            
+            try:
+                clamp_span_arb = float(self.energy_clamp_span_arb.get())
+            except:
+                clamp_span_arb = 0
+            
+            try:
+                eye_span = float(self.energy_eye_span.get())
+            except:
+                eye_span = 0
+            
+            try:
+                lever_ratio = float(self.energy_lever_ratio.get())
+            except:
+                lever_ratio = 1.0
+            
             # Handle wall thickness (0 or None means solid)
             wall_thickness = None if wall_thickness_input <= 0 else wall_thickness_input
             
-            # Calculate
+            # Calculate using energy method
             results = self.arb_energy_calculator.calculate(
                 eyeball_span=eyeball_span,
                 shoulder_span=shoulder_span,
@@ -1587,9 +1767,46 @@ class SuspensionCalculatorGUI:
             )
             
             summary = self.arb_energy_calculator.get_summary()
+            bar_spring_rate_calculated = summary['spring_rate_calculated']
             
-            # Update spring rate
-            self.out_calc_rate.config(text=f"{summary['spring_rate_calculated']:.4f}")
+            # Apply bend reduction: 2.5% per bend
+            reduction_percent = num_bends * 2.5
+            reduction_factor = 1 - (reduction_percent / 100)
+            bar_spring_rate = bar_spring_rate_calculated * reduction_factor
+            
+            # Calculate bush lever ratio (clamp span / eye span)
+            if eye_span > 0 and clamp_span_arb > 0:
+                bush_lever_ratio = clamp_span_arb / eye_span
+            else:
+                bush_lever_ratio = 0
+            
+            # Calculate bush stiffness at eye (multiplied by bush lever ratio squared)
+            if bush_stiffness > 0 and bush_lever_ratio > 0:
+                bush_stiffness_at_eye = bush_stiffness * (bush_lever_ratio ** 2)
+            else:
+                bush_stiffness_at_eye = 0
+            
+            # Calculate combined eye stiffness (series combination)
+            # 1/K_eye = 1/K_bar + 1/K_bush_at_eye
+            if bush_stiffness_at_eye > 0:
+                eye_stiffness = (bar_spring_rate * bush_stiffness_at_eye) / (bar_spring_rate + bush_stiffness_at_eye)
+            else:
+                eye_stiffness = bar_spring_rate
+            
+            # Calculate wheel rate at ARB link
+            # K_wheel = K_eye * (lever_ratio)^2
+            wheel_rate_arb = eye_stiffness * (lever_ratio ** 2)
+            
+            # Update spring rates
+            self.out_calc_rate.config(text=f"{bar_spring_rate_calculated:.4f}")
+            self.out_num_bends.config(text=f"{num_bends}")
+            self.out_reduction_factor.config(text=f"{reduction_percent:.1f}" if num_bends > 0 else "0.0")
+            self.out_adjusted_bar_rate.config(text=f"{bar_spring_rate:.4f}")
+            self.out_bush_stiff.config(text=f"{bush_stiffness:.2f}" if bush_stiffness > 0 else "-")
+            self.out_bush_lever_ratio.config(text=f"{bush_lever_ratio:.3f}" if bush_lever_ratio > 0 else "-")
+            self.out_bush_stiff_at_eye.config(text=f"{bush_stiffness_at_eye:.2f}" if bush_stiffness_at_eye > 0 else "-")
+            self.out_eye_stiffness.config(text=f"{eye_stiffness:.4f}")
+            self.out_wheel_rate_arb.config(text=f"{wheel_rate_arb:.4f}")
             
             # Update physical properties
             self.out_bar_mass.config(text=f"{summary['bar_mass']:.6f}")
@@ -1610,9 +1827,15 @@ class SuspensionCalculatorGUI:
             self.out_energy_E.config(text=f"{summary['energy_outer_section']:.6e}")
             self.out_energy_total.config(text=f"{summary['total_strain_energy']:.6e}")
             
+            bend_info = f"\nBend Reduction: {num_bends} bends × 2.5% = -{reduction_percent:.1f}%" if num_bends > 0 else ""
+            
             messagebox.showinfo("Success", 
                               f"ARB Energy Method calculations completed!\n\n"
-                              f"Calculated Spring Rate: {summary['spring_rate_calculated']:.4f} N/mm\n"
+                              f"Bar Spring Rate (Calculated): {bar_spring_rate_calculated:.4f} N/mm{bend_info}\n"
+                              f"Bar Spring Rate (Adjusted): {bar_spring_rate:.4f} N/mm\n"
+                              f"Bush Stiff @ Eye: {bush_stiffness_at_eye:.2f} N/mm\n"
+                              f"Combined Eye Stiffness: {eye_stiffness:.4f} N/mm\n"
+                              f"ARB Wheel Rate: {wheel_rate_arb:.4f} N/mm\n"
                               f"Bar Mass: {summary['bar_mass']:.6f} kg\n"
                               f"Bend Angle: {bend_angle_deg:.2f}°")
             
@@ -1627,6 +1850,625 @@ class SuspensionCalculatorGUI:
         entry_widget.delete(0, tk.END)
         entry_widget.insert(0, value)
         entry_widget.config(state='readonly')
+    
+    def load_configurations(self):
+        """Load saved configurations from JSON file"""
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to load configurations: {str(e)}")
+                return {}
+        return {}
+    
+    def save_configurations_to_file(self):
+        """Save configurations to JSON file"""
+        try:
+            with open(self.config_file, 'w') as f:
+                json.dump(self.saved_configs, f, indent=4)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save configurations: {str(e)}")
+    
+    def update_config_dropdown(self):
+        """Update the dropdown with saved configuration names"""
+        config_names = list(self.saved_configs.keys())
+        self.config_dropdown['values'] = config_names
+        if config_names:
+            self.config_dropdown.set('')
+    
+    def get_all_inputs(self):
+        """Gather all input values from all tabs"""
+        config = {}
+        
+        # Ride Frequency Tab
+        try:
+            config['front_axle_weight'] = self.front_axle_weight.get()
+            config['rear_axle_weight'] = self.rear_axle_weight.get()
+            config['unsprung_mass_front'] = self.unsprung_mass_front.get()
+            config['unsprung_mass_rear'] = self.unsprung_mass_rear.get()
+            config['tire_stiffness'] = self.tire_stiffness.get()
+            config['motion_ratio_front'] = self.motion_ratio_front.get()
+            config['motion_ratio_rear'] = self.motion_ratio_rear.get()
+            config['parametric_stiffness'] = self.parametric_stiffness.get()
+            config['target_freq_front'] = self.target_freq_front.get()
+            config['target_freq_rear'] = self.target_freq_rear.get()
+        except:
+            pass
+        
+        # Roll Stiffness Tab
+        try:
+            config['roll_cg_height'] = self.roll_cg_height.get()
+            config['front_roll_center'] = self.front_roll_center.get()
+            config['rear_roll_center'] = self.rear_roll_center.get()
+            config['roll_front_track'] = self.roll_front_track.get()
+            config['roll_rear_track'] = self.roll_rear_track.get()
+            config['roll_wheel_rate_front'] = self.roll_wheel_rate_front.get()
+            config['roll_wheel_rate_rear'] = self.roll_wheel_rate_rear.get()
+            config['roll_target_angle'] = self.roll_target_angle.get()
+            config['roll_target_dist'] = self.roll_target_dist.get()
+        except:
+            pass
+        
+        # ARB Design Tab
+        try:
+            config['arb_bush_stiffness_front'] = self.arb_bush_stiffness_front.get()
+            config['arb_clamp_span_front'] = self.arb_clamp_span_front.get()
+            config['arb_eye_span_front'] = self.arb_eye_span_front.get()
+            config['arb_lever_ratio_front'] = self.arb_lever_ratio_front.get()
+            config['arb_bush_stiffness_rear'] = self.arb_bush_stiffness_rear.get()
+            config['arb_clamp_span_rear'] = self.arb_clamp_span_rear.get()
+            config['arb_eye_span_rear'] = self.arb_eye_span_rear.get()
+            config['arb_lever_ratio_rear'] = self.arb_lever_ratio_rear.get()
+        except:
+            pass
+        
+        # ARB Energy Method Tab
+        try:
+            config['energy_eyeball_span'] = self.energy_eyeball_span.get()
+            config['energy_shoulder_span'] = self.energy_shoulder_span.get()
+            config['energy_clamp_span'] = self.energy_clamp_span.get()
+            config['energy_arm_length'] = self.energy_arm_length.get()
+            config['energy_shoulder_R'] = self.energy_shoulder_R.get()
+            config['energy_stroke'] = self.energy_stroke.get()
+            config['energy_diameter'] = self.energy_diameter.get()
+            config['energy_wall_thickness'] = self.energy_wall_thickness.get()
+            config['energy_E'] = self.energy_E.get()
+            config['energy_G'] = self.energy_G.get()
+            config['energy_bush_stiffness'] = self.energy_bush_stiffness.get()
+            config['energy_clamp_span_arb'] = self.energy_clamp_span_arb.get()
+            config['energy_eye_span'] = self.energy_eye_span.get()
+            config['energy_lever_ratio'] = self.energy_lever_ratio.get()
+            config['energy_num_bends'] = self.energy_num_bends.get()
+        except:
+            pass
+        
+        return config
+    
+    def set_all_inputs(self, config):
+        """Set all input values from a configuration"""
+        # Ride Frequency Tab
+        if 'front_axle_weight' in config:
+            self.front_axle_weight.delete(0, tk.END)
+            self.front_axle_weight.insert(0, config['front_axle_weight'])
+        if 'rear_axle_weight' in config:
+            self.rear_axle_weight.delete(0, tk.END)
+            self.rear_axle_weight.insert(0, config['rear_axle_weight'])
+        if 'unsprung_mass_front' in config:
+            self.unsprung_mass_front.delete(0, tk.END)
+            self.unsprung_mass_front.insert(0, config['unsprung_mass_front'])
+        if 'unsprung_mass_rear' in config:
+            self.unsprung_mass_rear.delete(0, tk.END)
+            self.unsprung_mass_rear.insert(0, config['unsprung_mass_rear'])
+        if 'tire_stiffness' in config:
+            self.tire_stiffness.delete(0, tk.END)
+            self.tire_stiffness.insert(0, config['tire_stiffness'])
+        if 'motion_ratio_front' in config:
+            self.motion_ratio_front.delete(0, tk.END)
+            self.motion_ratio_front.insert(0, config['motion_ratio_front'])
+        if 'motion_ratio_rear' in config:
+            self.motion_ratio_rear.delete(0, tk.END)
+            self.motion_ratio_rear.insert(0, config['motion_ratio_rear'])
+        if 'parametric_stiffness' in config:
+            self.parametric_stiffness.delete(0, tk.END)
+            self.parametric_stiffness.insert(0, config['parametric_stiffness'])
+        if 'target_freq_front' in config:
+            self.target_freq_front.delete(0, tk.END)
+            self.target_freq_front.insert(0, config['target_freq_front'])
+        if 'target_freq_rear' in config:
+            self.target_freq_rear.delete(0, tk.END)
+            self.target_freq_rear.insert(0, config['target_freq_rear'])
+        
+        # Roll Stiffness Tab
+        if 'roll_cg_height' in config:
+            self.roll_cg_height.delete(0, tk.END)
+            self.roll_cg_height.insert(0, config['roll_cg_height'])
+        if 'front_roll_center' in config:
+            self.front_roll_center.delete(0, tk.END)
+            self.front_roll_center.insert(0, config['front_roll_center'])
+        if 'rear_roll_center' in config:
+            self.rear_roll_center.delete(0, tk.END)
+            self.rear_roll_center.insert(0, config['rear_roll_center'])
+        if 'roll_front_track' in config:
+            self.roll_front_track.delete(0, tk.END)
+            self.roll_front_track.insert(0, config['roll_front_track'])
+        if 'roll_rear_track' in config:
+            self.roll_rear_track.delete(0, tk.END)
+            self.roll_rear_track.insert(0, config['roll_rear_track'])
+        if 'roll_wheel_rate_front' in config:
+            self.roll_wheel_rate_front.delete(0, tk.END)
+            self.roll_wheel_rate_front.insert(0, config['roll_wheel_rate_front'])
+        if 'roll_wheel_rate_rear' in config:
+            self.roll_wheel_rate_rear.delete(0, tk.END)
+            self.roll_wheel_rate_rear.insert(0, config['roll_wheel_rate_rear'])
+        if 'roll_target_angle' in config:
+            self.roll_target_angle.delete(0, tk.END)
+            self.roll_target_angle.insert(0, config['roll_target_angle'])
+        if 'roll_target_dist' in config:
+            self.roll_target_dist.delete(0, tk.END)
+            self.roll_target_dist.insert(0, config['roll_target_dist'])
+        
+        # ARB Design Tab
+        if 'arb_bush_stiffness_front' in config:
+            self.arb_bush_stiffness_front.delete(0, tk.END)
+            self.arb_bush_stiffness_front.insert(0, config['arb_bush_stiffness_front'])
+        if 'arb_clamp_span_front' in config:
+            self.arb_clamp_span_front.delete(0, tk.END)
+            self.arb_clamp_span_front.insert(0, config['arb_clamp_span_front'])
+        if 'arb_eye_span_front' in config:
+            self.arb_eye_span_front.delete(0, tk.END)
+            self.arb_eye_span_front.insert(0, config['arb_eye_span_front'])
+        if 'arb_lever_ratio_front' in config:
+            self.arb_lever_ratio_front.delete(0, tk.END)
+            self.arb_lever_ratio_front.insert(0, config['arb_lever_ratio_front'])
+        if 'arb_bush_stiffness_rear' in config:
+            self.arb_bush_stiffness_rear.delete(0, tk.END)
+            self.arb_bush_stiffness_rear.insert(0, config['arb_bush_stiffness_rear'])
+        if 'arb_clamp_span_rear' in config:
+            self.arb_clamp_span_rear.delete(0, tk.END)
+            self.arb_clamp_span_rear.insert(0, config['arb_clamp_span_rear'])
+        if 'arb_eye_span_rear' in config:
+            self.arb_eye_span_rear.delete(0, tk.END)
+            self.arb_eye_span_rear.insert(0, config['arb_eye_span_rear'])
+        if 'arb_lever_ratio_rear' in config:
+            self.arb_lever_ratio_rear.delete(0, tk.END)
+            self.arb_lever_ratio_rear.insert(0, config['arb_lever_ratio_rear'])
+        
+        # ARB Energy Method Tab
+        if 'energy_eyeball_span' in config:
+            self.energy_eyeball_span.delete(0, tk.END)
+            self.energy_eyeball_span.insert(0, config['energy_eyeball_span'])
+        if 'energy_shoulder_span' in config:
+            self.energy_shoulder_span.delete(0, tk.END)
+            self.energy_shoulder_span.insert(0, config['energy_shoulder_span'])
+        if 'energy_clamp_span' in config:
+            self.energy_clamp_span.delete(0, tk.END)
+            self.energy_clamp_span.insert(0, config['energy_clamp_span'])
+        if 'energy_arm_length' in config:
+            self.energy_arm_length.delete(0, tk.END)
+            self.energy_arm_length.insert(0, config['energy_arm_length'])
+        if 'energy_shoulder_R' in config:
+            self.energy_shoulder_R.delete(0, tk.END)
+            self.energy_shoulder_R.insert(0, config['energy_shoulder_R'])
+        if 'energy_stroke' in config:
+            self.energy_stroke.delete(0, tk.END)
+            self.energy_stroke.insert(0, config['energy_stroke'])
+        if 'energy_diameter' in config:
+            self.energy_diameter.delete(0, tk.END)
+            self.energy_diameter.insert(0, config['energy_diameter'])
+        if 'energy_wall_thickness' in config:
+            self.energy_wall_thickness.delete(0, tk.END)
+            self.energy_wall_thickness.insert(0, config['energy_wall_thickness'])
+        if 'energy_E' in config:
+            self.energy_E.delete(0, tk.END)
+            self.energy_E.insert(0, config['energy_E'])
+        if 'energy_G' in config:
+            self.energy_G.delete(0, tk.END)
+            self.energy_G.insert(0, config['energy_G'])
+        if 'energy_bush_stiffness' in config:
+            self.energy_bush_stiffness.delete(0, tk.END)
+            self.energy_bush_stiffness.insert(0, config['energy_bush_stiffness'])
+        if 'energy_clamp_span_arb' in config:
+            self.energy_clamp_span_arb.delete(0, tk.END)
+            self.energy_clamp_span_arb.insert(0, config['energy_clamp_span_arb'])
+        if 'energy_eye_span' in config:
+            self.energy_eye_span.delete(0, tk.END)
+            self.energy_eye_span.insert(0, config['energy_eye_span'])
+        if 'energy_lever_ratio' in config:
+            self.energy_lever_ratio.delete(0, tk.END)
+            self.energy_lever_ratio.insert(0, config['energy_lever_ratio'])
+        if 'energy_num_bends' in config:
+            self.energy_num_bends.delete(0, tk.END)
+            self.energy_num_bends.insert(0, config['energy_num_bends'])
+    
+    def save_configuration(self):
+        """Save current inputs with a user-provided name"""
+        # Ask user for configuration name
+        config_name = simpledialog.askstring("Save Configuration", 
+                                             "Enter a name for this configuration:",
+                                             parent=self.root)
+        
+        if not config_name:
+            return  # User cancelled
+        
+        if config_name in self.saved_configs:
+            if not messagebox.askyesno("Overwrite?", 
+                                      f"Configuration '{config_name}' already exists. Overwrite?"):
+                return
+        
+        # Get all current input values
+        current_config = self.get_all_inputs()
+        
+        # Save to dictionary
+        self.saved_configs[config_name] = current_config
+        
+        # Save to file
+        self.save_configurations_to_file()
+        
+        # Update dropdown
+        self.update_config_dropdown()
+        
+        messagebox.showinfo("Success", f"Configuration '{config_name}' saved successfully!")
+    
+    def load_selected_config(self, event=None):
+        """Load the selected configuration from dropdown"""
+        config_name = self.config_dropdown.get()
+        
+        if not config_name:
+            return
+        
+        if config_name in self.saved_configs:
+            config = self.saved_configs[config_name]
+            self.set_all_inputs(config)
+            messagebox.showinfo("Success", f"Configuration '{config_name}' loaded successfully!")
+        else:
+            messagebox.showerror("Error", f"Configuration '{config_name}' not found!")
+    
+    def update_configuration(self):
+        """Update the currently selected configuration with current input values"""
+        config_name = self.config_dropdown.get()
+        
+        if not config_name:
+            messagebox.showwarning("Warning", "Please select a configuration from the dropdown to update.")
+            return
+        
+        if config_name not in self.saved_configs:
+            messagebox.showerror("Error", f"Configuration '{config_name}' not found!")
+            return
+        
+        if messagebox.askyesno("Update Configuration", 
+                              f"Update '{config_name}' with current input values?"):
+            # Get all current input values
+            current_config = self.get_all_inputs()
+            
+            # Update the configuration
+            self.saved_configs[config_name] = current_config
+            
+            # Save to file
+            self.save_configurations_to_file()
+            
+            messagebox.showinfo("Success", f"Configuration '{config_name}' updated successfully!")
+    
+    def delete_configuration(self):
+        """Delete the selected configuration"""
+        config_name = self.config_dropdown.get()
+        
+        if not config_name:
+            messagebox.showwarning("Warning", "Please select a configuration to delete.")
+            return
+        
+        if messagebox.askyesno("Delete Configuration", 
+                              f"Are you sure you want to delete '{config_name}'?"):
+            if config_name in self.saved_configs:
+                del self.saved_configs[config_name]
+                self.save_configurations_to_file()
+                self.update_config_dropdown()
+                messagebox.showinfo("Success", f"Configuration '{config_name}' deleted successfully!")
+            else:
+                messagebox.showerror("Error", f"Configuration '{config_name}' not found!")
+    
+    def export_to_excel(self):
+        """Export all data to Excel file with proper formatting"""
+        if not PANDAS_AVAILABLE:
+            messagebox.showerror("Error", "pandas library not installed. Please install pandas and openpyxl:\npip install pandas openpyxl")
+            return
+        
+        try:
+            # Get config name for filename
+            config_name = self.config_dropdown.get()
+            if not config_name:
+                config_name = "Suspension_ARB_Data"
+            
+            # Clean filename
+            clean_name = "".join(c if c.isalnum() or c in (' ', '_', '-') else '_' for c in config_name)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            default_filename = f"{clean_name}_{timestamp}.xlsx"
+            
+            # Ask user for save location
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+                initialfile=default_filename
+            )
+            
+            if not file_path:
+                return  # User cancelled
+            
+            # Create Excel writer
+            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                # Export each tab's data
+                self._export_ride_frequency_data(writer)
+                self._export_roll_stiffness_data(writer)
+                self._export_arb_design_data(writer)
+                self._export_arb_energy_data(writer)
+                self._export_summary_data(writer)
+            
+            messagebox.showinfo("Success", f"Data exported successfully to:\n{file_path}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export data:\n{str(e)}")
+    
+    def _export_ride_frequency_data(self, writer):
+        """Export Ride Frequency tab data"""
+        try:
+            data = {
+                'Parameter': [],
+                'Front': [],
+                'Rear': [],
+                'Unit': []
+            }
+            
+            # Inputs
+            data['Parameter'].extend(['=== INPUTS ===', 'Axle Weight (LH+RH)', 'Unsprung Mass (One Side)', 
+                                     'Tire Stiffness', 'Motion Ratio', 'Parametric Stiffness', 'Target Ride Frequency'])
+            data['Front'].extend(['', self.front_axle_weight.get(), self.unsprung_mass_front.get(),
+                                 self.tire_stiffness.get(), self.motion_ratio_front.get(), 
+                                 self.parametric_stiffness.get(), self.target_freq_front.get()])
+            data['Rear'].extend(['', self.rear_axle_weight.get(), self.unsprung_mass_rear.get(),
+                                '-', self.motion_ratio_rear.get(), '-', self.target_freq_rear.get()])
+            data['Unit'].extend(['', 'kg', 'kg', 'N/mm', '-', 'N/mm', 'Hz'])
+            
+            # Results from tree view
+            data['Parameter'].append('=== RESULTS ===')
+            data['Front'].append('')
+            data['Rear'].append('')
+            data['Unit'].append('')
+            
+            for item in self.results_tree.get_children():
+                values = self.results_tree.item(item)['values']
+                data['Parameter'].append(values[0])
+                data['Front'].append(values[1])
+                data['Rear'].append(values[2])
+                data['Unit'].append(values[3])
+            
+            df = pd.DataFrame(data)
+            df.to_excel(writer, sheet_name='Ride Frequency', index=False)
+        except Exception as e:
+            print(f"Error exporting ride frequency data: {e}")
+    
+    def _export_roll_stiffness_data(self, writer):
+        """Export Roll Stiffness tab data"""
+        try:
+            data = {
+                'Parameter': [],
+                'Value': [],
+                'Unit': []
+            }
+            
+            # Inputs
+            data['Parameter'].extend(['=== INPUTS ===', 'CG Height', 'Roll Center Height (Front)', 
+                                     'Roll Center Height (Rear)', 'Track Width (Front)', 'Track Width (Rear)',
+                                     'Wheel Rate (Front)', 'Wheel Rate (Rear)', 'Target Roll Angle @ 0.5G',
+                                     'Target Front Distribution'])
+            data['Value'].extend(['', self.roll_cg_height.get(), self.front_roll_center.get(),
+                                 self.rear_roll_center.get(), self.roll_front_track.get(), self.roll_rear_track.get(),
+                                 self.roll_wheel_rate_front.get(), self.roll_wheel_rate_rear.get(),
+                                 self.roll_target_angle.get(), self.roll_target_dist.get()])
+            data['Unit'].extend(['', 'mm', 'mm', 'mm', 'mm', 'mm', 'N/mm', 'N/mm', 'deg', '%'])
+            
+            # Results
+            data['Parameter'].extend(['', '=== RESULTS ===', 'Eff. Roll Center Height', 'Roll Moment Arm',
+                                     'Roll Moment @ 0.5G', 'Tire Roll Stiffness FR', 'Tire Roll Stiffness RR',
+                                     'Spring Roll Stiffness FR', 'Spring Roll Stiffness RR',
+                                     'Total Req. Roll Stiffness', 'Susp. Req. (Total)', 'Susp. Req. FR', 'Susp. Req. RR',
+                                     'ARB Roll Stiffness FR', 'ARB Roll Stiffness RR'])
+            data['Value'].extend(['', '', self.out_rc_height.cget('text'), self.out_roll_arm.cget('text'),
+                                 self.out_roll_moment.cget('text'), self.out_tire_roll_fr.cget('text'),
+                                 self.out_tire_roll_rr.cget('text'), self.out_spring_roll_fr.cget('text'),
+                                 self.out_spring_roll_rr.cget('text'), self.out_total_req.cget('text'),
+                                 self.out_susp_req_total.cget('text'), self.out_susp_req_fr.cget('text'),
+                                 self.out_susp_req_rr.cget('text'), self.out_arb_req_fr.cget('text'),
+                                 self.out_arb_req_rr.cget('text')])
+            data['Unit'].extend(['', '', 'mm', 'mm', 'Nm', 'Nm/deg', 'Nm/deg', 'Nm/deg', 'Nm/deg',
+                                'Nm/deg', 'Nm/deg', 'Nm/deg', 'Nm/deg', 'Nm/deg', 'Nm/deg'])
+            
+            df = pd.DataFrame(data)
+            df.to_excel(writer, sheet_name='Roll Stiffness', index=False)
+        except Exception as e:
+            print(f"Error exporting roll stiffness data: {e}")
+    
+    def _export_arb_design_data(self, writer):
+        """Export ARB Design tab data"""
+        try:
+            data = {
+                'Parameter': [],
+                'Front': [],
+                'Rear': [],
+                'Unit': []
+            }
+            
+            # Inputs
+            data['Parameter'].extend(['=== INPUTS ===', 'Bush Stiffness', 'Clamp Span', 'Eye Span', 'Lever Ratio (σ)'])
+            data['Front'].extend(['', self.arb_bush_stiffness_front.get(), self.arb_clamp_span_front.get(),
+                                 self.arb_eye_span_front.get(), self.arb_lever_ratio_front.get()])
+            data['Rear'].extend(['', self.arb_bush_stiffness_rear.get(), self.arb_clamp_span_rear.get(),
+                                self.arb_eye_span_rear.get(), self.arb_lever_ratio_rear.get()])
+            data['Unit'].extend(['', 'N/mm', 'mm', 'mm', '-'])
+            
+            # Results
+            data['Parameter'].extend(['', '=== RESULTS ===', 'ARB Wheel Rate Required', 'Bush Lever Ratio',
+                                     'Bush Stiffness at Eye', 'ARB Bar Stiffness', 'Combined Eye Stiffness'])
+            data['Front'].extend(['', '', self.arb_wheel_rate_required_front.get(), 
+                                 self.bush_lever_ratio_front_display.get(),
+                                 self.bush_stiffness_eye_front_display.get(),
+                                 self.arb_bar_stiffness_front_display.get(),
+                                 self.combined_eye_stiffness_front_display.get()])
+            data['Rear'].extend(['', '', self.arb_wheel_rate_required_rear.get(),
+                                self.bush_lever_ratio_rear_display.get(),
+                                self.bush_stiffness_eye_rear_display.get(),
+                                self.arb_bar_stiffness_rear_display.get(),
+                                self.combined_eye_stiffness_rear_display.get()])
+            data['Unit'].extend(['', '', 'N/mm', '-', 'N/mm', 'N/mm', 'N/mm'])
+            
+            df = pd.DataFrame(data)
+            df.to_excel(writer, sheet_name='ARB Design', index=False)
+        except Exception as e:
+            print(f"Error exporting ARB design data: {e}")
+    
+    def _export_arb_energy_data(self, writer):
+        """Export ARB Energy Method tab data"""
+        try:
+            data = {
+                'Parameter': [],
+                'Value': [],
+                'Unit': []
+            }
+            
+            # Geometry Inputs
+            data['Parameter'].extend(['=== GEOMETRY INPUTS ===', 'Eyeball Span', 'Shoulder Span', 'Clamp Span',
+                                     'Arm Length', 'Shoulder Radius', 'Stroke', 'No. of Bends (One Side)'])
+            data['Value'].extend(['', self.energy_eyeball_span.get(), self.energy_shoulder_span.get(),
+                                 self.energy_clamp_span.get(), self.energy_arm_length.get(),
+                                 self.energy_shoulder_R.get(), self.energy_stroke.get(), self.energy_num_bends.get()])
+            data['Unit'].extend(['', 'mm', 'mm', 'mm', 'mm', 'mm', 'mm', '-'])
+            
+            # Material Inputs
+            data['Parameter'].extend(['', '=== MATERIAL INPUTS ===', 'Outer Diameter', 'Wall Thickness',
+                                     "Young's Modulus (E)", 'Shear Modulus (G)'])
+            data['Value'].extend(['', '', self.energy_diameter.get(), self.energy_wall_thickness.get(),
+                                 self.energy_E.get(), self.energy_G.get()])
+            data['Unit'].extend(['', '', 'mm', 'mm', 'MPa', 'MPa'])
+            
+            # Bush & Linkage Inputs
+            data['Parameter'].extend(['', '=== BUSH & LINKAGE ===', 'Bush Stiffness', 'Clamp Span (ARB)',
+                                     'Eye Span', 'Lever Ratio (σ)'])
+            data['Value'].extend(['', '', self.energy_bush_stiffness.get(), self.energy_clamp_span_arb.get(),
+                                 self.energy_eye_span.get(), self.energy_lever_ratio.get()])
+            data['Unit'].extend(['', '', 'N/mm', 'mm', 'mm', '-'])
+            
+            # Results - Spring Rates
+            data['Parameter'].extend(['', '=== SPRING RATES ===', 'Spring Rate (Calculated)', 'No. of Bends',
+                                     'Reduction Factor', 'Bar Rate (Adjusted)', 'Bush Stiffness (Input)',
+                                     'Bush Lever Ratio', 'Bush Stiff @ Eye (×LR²)', 'Eye Stiffness (Combined)',
+                                     'Wheel Rate (ARB)'])
+            data['Value'].extend(['', '', self.out_calc_rate.cget('text'), self.out_num_bends.cget('text'),
+                                 self.out_reduction_factor.cget('text'), self.out_adjusted_bar_rate.cget('text'),
+                                 self.out_bush_stiff.cget('text'), self.out_bush_lever_ratio.cget('text'),
+                                 self.out_bush_stiff_at_eye.cget('text'), self.out_eye_stiffness.cget('text'),
+                                 self.out_wheel_rate_arb.cget('text')])
+            data['Unit'].extend(['', '', 'N/mm', '-', '%', 'N/mm', 'N/mm', '-', 'N/mm', 'N/mm', 'N/mm'])
+            
+            # Physical Properties
+            data['Parameter'].extend(['', '=== PHYSICAL PROPERTIES ===', 'Bar Mass', 'Inner Diameter',
+                                     '2nd Moment (Bending)', 'Polar Moment (Torsion)'])
+            data['Value'].extend(['', '', self.out_bar_mass.cget('text'), self.out_inner_dia.cget('text'),
+                                 self.out_2nd_moment.cget('text'), self.out_polar_moment.cget('text')])
+            data['Unit'].extend(['', '', 'kg', 'mm', 'mm⁴', 'mm⁴'])
+            
+            # Geometry Results
+            data['Parameter'].extend(['', '=== GEOMETRY RESULTS ===', 'Bend Angle', 'Effective Length'])
+            data['Value'].extend(['', '', self.out_bend_angle.cget('text'), self.out_eff_length.cget('text')])
+            data['Unit'].extend(['', '', 'deg', 'mm'])
+            
+            # Energy Breakdown
+            data['Parameter'].extend(['', '=== ENERGY BREAKDOWN ===', 'Straight Section (A)',
+                                     'Bend Bending (B)', 'Bend Torsion (C)', 'Middle Section (D)',
+                                     'Outer Section (E)', 'Total Energy'])
+            data['Value'].extend(['', '', self.out_energy_A.cget('text'), self.out_energy_B.cget('text'),
+                                 self.out_energy_C.cget('text'), self.out_energy_D.cget('text'),
+                                 self.out_energy_E.cget('text'), self.out_energy_total.cget('text')])
+            data['Unit'].extend(['', '', 'J', 'J', 'J', 'J', 'J', 'J'])
+            
+            df = pd.DataFrame(data)
+            df.to_excel(writer, sheet_name='ARB Energy Method', index=False)
+        except Exception as e:
+            print(f"Error exporting ARB energy data: {e}")
+    
+    def _export_summary_data(self, writer):
+        """Export summary sheet with key information"""
+        try:
+            config_name = self.config_dropdown.get() if self.config_dropdown.get() else "N/A"
+            
+            data = {
+                'Item': [
+                    'Configuration Name',
+                    'Export Date & Time',
+                    'Software Version',
+                    '',
+                    '=== KEY RESULTS ===',
+                    'Front Ride Frequency Target',
+                    'Rear Ride Frequency Target',
+                    'ARB Roll Stiffness Required (Front)',
+                    'ARB Roll Stiffness Required (Rear)',
+                    'ARB Wheel Rate (Front)',
+                    'ARB Wheel Rate (Rear)',
+                    'Target Roll Angle @ 0.5G',
+                    '',
+                    '=== VEHICLE DATA ===',
+                    'Front Axle Weight',
+                    'Rear Axle Weight',
+                    'Track Width (Front)',
+                    'Track Width (Rear)',
+                    'CG Height'
+                ],
+                'Value': [
+                    config_name,
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    '1.0.0',
+                    '',
+                    '',
+                    self.target_freq_front.get(),
+                    self.target_freq_rear.get(),
+                    self.out_arb_req_fr.cget('text'),
+                    self.out_arb_req_rr.cget('text'),
+                    self.arb_wheel_rate_required_front.get() if hasattr(self, 'arb_wheel_rate_required_front') else '-',
+                    self.arb_wheel_rate_required_rear.get() if hasattr(self, 'arb_wheel_rate_required_rear') else '-',
+                    self.roll_target_angle.get(),
+                    '',
+                    '',
+                    self.front_axle_weight.get(),
+                    self.rear_axle_weight.get(),
+                    self.roll_front_track.get(),
+                    self.roll_rear_track.get(),
+                    self.roll_cg_height.get()
+                ],
+                'Unit': [
+                    '-',
+                    '-',
+                    '-',
+                    '',
+                    '',
+                    'Hz',
+                    'Hz',
+                    'Nm/deg',
+                    'Nm/deg',
+                    'N/mm',
+                    'N/mm',
+                    'deg',
+                    '',
+                    '',
+                    'kg',
+                    'kg',
+                    'mm',
+                    'mm',
+                    'mm'
+                ]
+            }
+            
+            df = pd.DataFrame(data)
+            df.to_excel(writer, sheet_name='Summary', index=False)
+        except Exception as e:
+            print(f"Error exporting summary data: {e}")
 
 
 def main():

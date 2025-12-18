@@ -1462,8 +1462,9 @@ class SuspensionCalculatorGUI:
                 bush_stiffness_at_eye = bush_stiffness * bush_lever_ratio**2
                 
                 # Step 12.3e: Required bar stiffness (solving series equation)
-                # K_bar = (K_bush_eye × K_wh_required) / (2 × (σ² × K_bush_eye - K_wh_required))
-                denom = 2 * (lever_ratio**2 * bush_stiffness_at_eye - arb_wh_required)
+                # 1/K_wh = 1/(σ² × K_bar) + 1/K_bush_eye
+                # K_bar = (K_bush_eye × K_wh_required) / (σ² × K_bush_eye - K_wh_required)
+                denom = lever_ratio**2 * bush_stiffness_at_eye - arb_wh_required
                 
                 if denom > 0 and arb_wh_required > 0:
                     arb_bar_stiffness = (bush_stiffness_at_eye * arb_wh_required) / denom
@@ -1477,8 +1478,10 @@ class SuspensionCalculatorGUI:
                     warning_msg = "WARNING: No ARB required for front"
                 
                 # Step 12.3d: Combined eye stiffness (for verification)
+                # At eye: K_combined = 1/(1/K_bar + 1/K_bush_eye)
+                # Should equal σ² × K_wh
                 if arb_bar_stiffness > 0:
-                    combined_eye_stiffness = 1 / (1/(2*arb_bar_stiffness) + 1/bush_stiffness_at_eye)
+                    combined_eye_stiffness = 1 / (1/arb_bar_stiffness + 1/bush_stiffness_at_eye)
                 else:
                     combined_eye_stiffness = 0
                 

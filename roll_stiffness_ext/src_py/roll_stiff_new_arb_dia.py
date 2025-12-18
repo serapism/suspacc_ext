@@ -1,6 +1,213 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import math
+from typing import Dict, Optional
+
+
+class ARBCalculator:
+    """
+    Calculate ARB stiffness using energy method.
+    Outputs all intermediate calculations from C3 to C76.
+    """
+    
+    # Default material properties
+    DEFAULT_E = 210000  # Young's modulus, MPa (steel)
+    DEFAULT_G = 80000   # Shear modulus, MPa (steel)
+    
+    def __init__(self):
+        self.results: Dict[str, float] = {}
+    
+    def calculate(self,
+                  eyeball_span: float = 1130.2,
+                  shoulder_span: float = 601.0,
+                  clamp_span: float = 505.0,
+                  arm_length: float = 201.5,
+                  shoulder_R: float = 55.0,
+                  stroke: float = 25.0,
+                  material_diameter: float = 26.0,
+                  wall_thickness: Optional[float] = None,
+                  E: Optional[float] = None,
+                  G: Optional[float] = None
+                  ) -> Dict[str, float]:
+        """Calculate ARB stiffness and all intermediate values."""
+        
+        if E is None:
+            E = self.DEFAULT_E
+        if G is None:
+            G = self.DEFAULT_G
+        
+        if wall_thickness is None or wall_thickness <= 0 or wall_thickness >= material_diameter / 2:
+            wall_thickness = material_diameter / 2
+        
+        C14 = eyeball_span
+        C15 = shoulder_span
+        C16 = clamp_span
+        C17 = arm_length
+        C18 = shoulder_R
+        C19 = stroke
+        C20 = material_diameter
+        C21 = wall_thickness
+        C37 = E
+        C38 = G
+        
+        r: Dict[str, float] = {}
+        
+        r['C14'] = C14
+        r['C15'] = C15
+        r['C16'] = C16
+        r['C17'] = C17
+        r['C18'] = C18
+        r['C19'] = C19
+        r['C20'] = C20
+        r['C21'] = C21
+        
+        C22 = ((C20 / 2) ** 2 * math.pi - ((C20 - C21) / 2) ** 2 * math.pi) * C14 * 7.81 / 1_000_000
+        r['C22'] = C22
+        
+        r['C37'] = C37
+        r['C38'] = C38
+        
+        C39 = max(0, C20 - 2 * C21)
+        r['C39'] = C39
+        
+        C40 = math.pi * (C20 ** 4 - C39 ** 4) / 64
+        r['C40'] = C40
+        
+        C41 = math.pi * (C20 ** 4 - C39 ** 4) / (32 * C20)
+        r['C41'] = C41
+        
+        C42 = math.pi * (C20 ** 4 - C39 ** 4) / 32
+        r['C42'] = C42
+        
+        C43 = math.pi * (C20 ** 4 - C39 ** 4) / (16 * C20)
+        r['C43'] = C43
+        
+        C45 = C14 / 2
+        r['C45'] = C45
+        
+        C48 = C17
+        r['C48'] = C48
+        
+        C49 = (C14 - C15) / 2
+        r['C49'] = C49
+        
+        C51 = math.atan(C48 / C49)
+        r['C51'] = C51
+        
+        C55 = C51 / 2
+        r['C55'] = C55
+        
+        C50 = C18 * math.tan(C51 / 2)
+        r['C50'] = C50
+        
+        C44 = math.sqrt(C48 ** 2 + C49 ** 2) - C50
+        r['C44'] = C44
+        
+        C46 = C15 / 2 - C50
+        r['C46'] = C46
+        
+        C47 = C16 / 2
+        r['C47'] = C47
+        
+        C52 = math.atan(C18 / C44)
+        r['C52'] = C52
+        
+        C53 = math.atan(C44 / C18)
+        r['C53'] = C53
+        
+        C54 = math.atan(-C44 / C18)
+        r['C54'] = C54
+        
+        C56 = C51 - C55
+        r['C56'] = C56
+        
+        C57 = C44 ** 3 / (3 * C37 * C40)
+        r['C57'] = C57
+        
+        C58 = C48 ** 2 * C46 / (C38 * C42)
+        r['C58'] = C58
+        
+        C59 = C57 + C58
+        r['C59'] = C59
+        
+        C60 = C18 / (C37 * C40)
+        r['C60'] = C60
+        
+        C61 = (C44 ** 2 / 2) * (C51 + math.sin(2 * C51) / 2)
+        r['C61'] = C61
+        
+        C62 = C44 * C18 * math.sin(C51) ** 2
+        r['C62'] = C62
+        
+        C63 = (C18 ** 2 / 2) * (C51 - math.sin(2 * C51) / 2)
+        r['C63'] = C63
+        
+        C64 = (C61 + C62 + C63) * C60
+        r['C64'] = C64
+        
+        C65 = C18 / (C38 * C42)
+        r['C65'] = C65
+        
+        C66 = (C51 - math.sin(2 * C51) / 2) * C44 ** 2 / 2
+        r['C66'] = C66
+        
+        C67 = (math.cos(C51) - 1) ** 2 * C44 * C18
+        r['C67'] = C67
+        
+        C68 = C18 ** 2 * ((3 * C51 / 2) - 2 * math.sin(C51) + 0.25 * math.sin(2 * C51))
+        r['C68'] = C68
+        
+        C69 = C65 * (C66 + C67 + C68)
+        r['C69'] = C69
+        
+        C70 = (C46 - C47) / (C37 * C40)
+        r['C70'] = C70
+        
+        C71 = (C49 + C18 * math.tan(C51 / 2)) ** 2
+        r['C71'] = C71
+        
+        C72 = (C46 - C47) * (C49 + C18 * math.tan(C51 / 2))
+        r['C72'] = C72
+        
+        C73 = (C46 - C47) ** 2 / 3
+        r['C73'] = C73
+        
+        C74 = C70 * (C71 + C72 + C73)
+        r['C74'] = C74
+        
+        C75 = (C45 - C47) ** 2 * C47 / (3 * C37 * C40)
+        r['C75'] = C75
+        
+        C76 = C59 + C64 + C69 + C74 + C75
+        r['C76'] = C76
+        
+        C28 = 1 / (2 * C76)
+        r['C28'] = C28
+        
+        self.results = r
+        
+        return r
+    
+    def get_summary(self) -> Dict[str, float]:
+        """Get key output parameters."""
+        if not self.results:
+            raise ValueError("No calculation results available. Run calculate() first.")
+        
+        return {
+            'spring_rate_calculated': self.results['C28'],
+            'bar_mass': self.results['C22'],
+            'inner_diameter': self.results['C39'],
+            'second_moment_area_bending': self.results['C40'],
+            'polar_moment_area_torsion': self.results['C42'],
+            'bend_angle_rad': self.results['C51'],
+            'effective_straight_length': self.results['C44'],
+            'energy_straight_section': self.results['C59'],
+            'energy_bend_bending': self.results['C64'],
+            'energy_bend_torsion': self.results['C69'],
+            'energy_middle_section': self.results['C74'],
+            'energy_outer_section': self.results['C75'],
+            'total_strain_energy': self.results['C76'],
+        }
 
 
 class SuspensionCalculator:
@@ -120,6 +327,7 @@ class SuspensionCalculatorGUI:
         self.root.geometry("1400x900")
         
         self.calculator = SuspensionCalculator()
+        self.arb_energy_calculator = ARBCalculator()
         
         # Initialize ARB roll stiffness values (from Roll Stiffness tab)
         self.arb_roll_stiffness_fr_required = 0.0
@@ -146,6 +354,7 @@ class SuspensionCalculatorGUI:
         self.create_ride_frequency_tab()
         self.create_roll_stiffness_tab()
         self.create_arb_design_tab()
+        self.create_arb_energy_method_tab()
         self.create_7dof_tab()
         self.create_damping_curves_tab()
         self.create_other_loading_tab()
@@ -725,6 +934,189 @@ class SuspensionCalculatorGUI:
         self.combined_eye_stiffness_rear_display.grid(row=5, column=1, padx=5)
         ttk.Label(rear_out_frame, text="N/mm").grid(row=5, column=2)
         
+    def create_arb_energy_method_tab(self):
+        """Create ARB Energy Method tab - Advanced calculation using strain energy"""
+        tab = ttk.Frame(self.notebook)
+        self.notebook.add(tab, text="ARB ENERGY METHOD")
+        
+        # Main container with scrollbar
+        main_container = ttk.Frame(tab)
+        main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Info section
+        info_frame = ttk.LabelFrame(main_container, text="INFO - Energy Method Calculation", padding="10")
+        info_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(info_frame, text="• Advanced ARB stiffness calculation using strain energy method", 
+                 foreground='blue').pack(anchor=tk.W, pady=2)
+        ttk.Label(info_frame, text="• Includes bending and torsional energy in all sections", 
+                 foreground='blue').pack(anchor=tk.W, pady=2)
+        
+        # Input sections container
+        inputs_container = ttk.Frame(main_container)
+        inputs_container.pack(fill=tk.BOTH, expand=True, pady=5)
+        
+        # Left column - Geometry inputs
+        left_col = ttk.Frame(inputs_container)
+        left_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        
+        geom_frame = ttk.LabelFrame(left_col, text="GEOMETRY", padding="10")
+        geom_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(geom_frame, text="Eyeball Span").grid(row=0, column=0, sticky=tk.W, pady=3)
+        self.energy_eyeball_span = ttk.Entry(geom_frame, width=12)
+        self.energy_eyeball_span.grid(row=0, column=1, padx=5)
+        ttk.Label(geom_frame, text="mm").grid(row=0, column=2)
+        
+        ttk.Label(geom_frame, text="Shoulder Span").grid(row=1, column=0, sticky=tk.W, pady=3)
+        self.energy_shoulder_span = ttk.Entry(geom_frame, width=12)
+        self.energy_shoulder_span.grid(row=1, column=1, padx=5)
+        ttk.Label(geom_frame, text="mm").grid(row=1, column=2)
+        
+        ttk.Label(geom_frame, text="Clamp Span").grid(row=2, column=0, sticky=tk.W, pady=3)
+        self.energy_clamp_span = ttk.Entry(geom_frame, width=12)
+        self.energy_clamp_span.grid(row=2, column=1, padx=5)
+        ttk.Label(geom_frame, text="mm").grid(row=2, column=2)
+        
+        ttk.Label(geom_frame, text="Arm Length").grid(row=3, column=0, sticky=tk.W, pady=3)
+        self.energy_arm_length = ttk.Entry(geom_frame, width=12)
+        self.energy_arm_length.grid(row=3, column=1, padx=5)
+        ttk.Label(geom_frame, text="mm").grid(row=3, column=2)
+        
+        ttk.Label(geom_frame, text="Shoulder Radius").grid(row=4, column=0, sticky=tk.W, pady=3)
+        self.energy_shoulder_R = ttk.Entry(geom_frame, width=12)
+        self.energy_shoulder_R.grid(row=4, column=1, padx=5)
+        ttk.Label(geom_frame, text="mm").grid(row=4, column=2)
+        
+        ttk.Label(geom_frame, text="Stroke").grid(row=5, column=0, sticky=tk.W, pady=3)
+        self.energy_stroke = ttk.Entry(geom_frame, width=12)
+        self.energy_stroke.grid(row=5, column=1, padx=5)
+        ttk.Label(geom_frame, text="mm").grid(row=5, column=2)
+        
+        # Middle column - Material inputs
+        middle_col = ttk.Frame(inputs_container)
+        middle_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        
+        mat_frame = ttk.LabelFrame(middle_col, text="MATERIAL", padding="10")
+        mat_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(mat_frame, text="Outer Diameter").grid(row=0, column=0, sticky=tk.W, pady=3)
+        self.energy_diameter = ttk.Entry(mat_frame, width=12)
+        self.energy_diameter.grid(row=0, column=1, padx=5)
+        ttk.Label(mat_frame, text="mm").grid(row=0, column=2)
+        
+        ttk.Label(mat_frame, text="Wall Thickness").grid(row=1, column=0, sticky=tk.W, pady=3)
+        self.energy_wall_thickness = ttk.Entry(mat_frame, width=12)
+        self.energy_wall_thickness.grid(row=1, column=1, padx=5)
+        ttk.Label(mat_frame, text="mm").grid(row=1, column=2)
+        ttk.Label(mat_frame, text="(0 = solid)", font=('Arial', 8, 'italic'), 
+                 foreground='gray').grid(row=1, column=3, sticky=tk.W)
+        
+        ttk.Label(mat_frame, text="Young's Modulus (E)").grid(row=2, column=0, sticky=tk.W, pady=3)
+        self.energy_E = ttk.Entry(mat_frame, width=12)
+        self.energy_E.grid(row=2, column=1, padx=5)
+        ttk.Label(mat_frame, text="MPa").grid(row=2, column=2)
+        
+        ttk.Label(mat_frame, text="Shear Modulus (G)").grid(row=3, column=0, sticky=tk.W, pady=3)
+        self.energy_G = ttk.Entry(mat_frame, width=12)
+        self.energy_G.grid(row=3, column=1, padx=5)
+        ttk.Label(mat_frame, text="MPa").grid(row=3, column=2)
+        
+        # Calculate button
+        calc_frame = ttk.Frame(middle_col)
+        calc_frame.pack(fill=tk.X, pady=15)
+        ttk.Button(calc_frame, text="⚙ CALCULATE ENERGY METHOD",
+                  command=self.calculate_arb_energy_method,
+                  width=30).pack()
+        
+        # Results section
+        results_frame = ttk.LabelFrame(main_container, text="CALCULATION RESULTS", padding="10")
+        results_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        
+        # Create two columns for results
+        results_left = ttk.Frame(results_frame)
+        results_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        
+        results_right = ttk.Frame(results_frame)
+        results_right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        
+        # Spring rates section
+        rates_frame = ttk.LabelFrame(results_left, text="SPRING RATES", padding="5")
+        rates_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(rates_frame, text="Spring Rate:").grid(row=0, column=0, sticky=tk.W)
+        self.out_calc_rate = ttk.Label(rates_frame, text="-", font=('Arial', 9, 'bold'), foreground='blue')
+        self.out_calc_rate.grid(row=0, column=1, padx=5)
+        ttk.Label(rates_frame, text="N/mm").grid(row=0, column=2)
+        
+        # Physical properties section
+        phys_frame = ttk.LabelFrame(results_left, text="PHYSICAL PROPERTIES", padding="5")
+        phys_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(phys_frame, text="Bar Mass:").grid(row=0, column=0, sticky=tk.W)
+        self.out_bar_mass = ttk.Label(phys_frame, text="-")
+        self.out_bar_mass.grid(row=0, column=1, padx=5)
+        ttk.Label(phys_frame, text="kg").grid(row=0, column=2)
+        
+        ttk.Label(phys_frame, text="Inner Diameter:").grid(row=1, column=0, sticky=tk.W)
+        self.out_inner_dia = ttk.Label(phys_frame, text="-")
+        self.out_inner_dia.grid(row=1, column=1, padx=5)
+        ttk.Label(phys_frame, text="mm").grid(row=1, column=2)
+        
+        ttk.Label(phys_frame, text="2nd Moment (Bending):").grid(row=2, column=0, sticky=tk.W)
+        self.out_2nd_moment = ttk.Label(phys_frame, text="-")
+        self.out_2nd_moment.grid(row=2, column=1, padx=5)
+        ttk.Label(phys_frame, text="mm⁴").grid(row=2, column=2)
+        
+        ttk.Label(phys_frame, text="Polar Moment (Torsion):").grid(row=3, column=0, sticky=tk.W)
+        self.out_polar_moment = ttk.Label(phys_frame, text="-")
+        self.out_polar_moment.grid(row=3, column=1, padx=5)
+        ttk.Label(phys_frame, text="mm⁴").grid(row=3, column=2)
+        
+        # Geometry results section
+        geom_res_frame = ttk.LabelFrame(results_right, text="GEOMETRY RESULTS", padding="5")
+        geom_res_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(geom_res_frame, text="Bend Angle:").grid(row=0, column=0, sticky=tk.W)
+        self.out_bend_angle = ttk.Label(geom_res_frame, text="-")
+        self.out_bend_angle.grid(row=0, column=1, padx=5)
+        ttk.Label(geom_res_frame, text="deg").grid(row=0, column=2)
+        
+        ttk.Label(geom_res_frame, text="Effective Length:").grid(row=1, column=0, sticky=tk.W)
+        self.out_eff_length = ttk.Label(geom_res_frame, text="-")
+        self.out_eff_length.grid(row=1, column=1, padx=5)
+        ttk.Label(geom_res_frame, text="mm").grid(row=1, column=2)
+        
+        # Energy breakdown section
+        energy_frame = ttk.LabelFrame(results_right, text="ENERGY BREAKDOWN", padding="5")
+        energy_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(energy_frame, text="Straight Section (A):").grid(row=0, column=0, sticky=tk.W)
+        self.out_energy_A = ttk.Label(energy_frame, text="-", font=('Arial', 8))
+        self.out_energy_A.grid(row=0, column=1, padx=5, sticky=tk.W)
+        
+        ttk.Label(energy_frame, text="Bend Bending (B):").grid(row=1, column=0, sticky=tk.W)
+        self.out_energy_B = ttk.Label(energy_frame, text="-", font=('Arial', 8))
+        self.out_energy_B.grid(row=1, column=1, padx=5, sticky=tk.W)
+        
+        ttk.Label(energy_frame, text="Bend Torsion (C):").grid(row=2, column=0, sticky=tk.W)
+        self.out_energy_C = ttk.Label(energy_frame, text="-", font=('Arial', 8))
+        self.out_energy_C.grid(row=2, column=1, padx=5, sticky=tk.W)
+        
+        ttk.Label(energy_frame, text="Middle Section (D):").grid(row=3, column=0, sticky=tk.W)
+        self.out_energy_D = ttk.Label(energy_frame, text="-", font=('Arial', 8))
+        self.out_energy_D.grid(row=3, column=1, padx=5, sticky=tk.W)
+        
+        ttk.Label(energy_frame, text="Outer Section (E):").grid(row=4, column=0, sticky=tk.W)
+        self.out_energy_E = ttk.Label(energy_frame, text="-", font=('Arial', 8))
+        self.out_energy_E.grid(row=4, column=1, padx=5, sticky=tk.W)
+        
+        ttk.Separator(energy_frame, orient=tk.HORIZONTAL).grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        
+        ttk.Label(energy_frame, text="Total Energy:", font=('Arial', 9, 'bold')).grid(row=6, column=0, sticky=tk.W)
+        self.out_energy_total = ttk.Label(energy_frame, text="-", font=('Arial', 9, 'bold'), foreground='red')
+        self.out_energy_total.grid(row=6, column=1, padx=5, sticky=tk.W)
+        
     def create_7dof_tab(self):
         """Create 7 DOF tab placeholder"""
         tab = ttk.Frame(self.notebook)
@@ -794,6 +1186,18 @@ class SuspensionCalculatorGUI:
         self.arb_eye_span_rear.insert(0, "80")          # mm
         self.arb_lever_ratio_front.insert(0, "1.5")     # dimensionless
         self.arb_lever_ratio_rear.insert(0, "1.5")      # dimensionless
+        
+        # ARB Energy Method tab - default values
+        self.energy_eyeball_span.insert(0, "1130.2")
+        self.energy_shoulder_span.insert(0, "601.0")
+        self.energy_clamp_span.insert(0, "505.0")
+        self.energy_arm_length.insert(0, "201.5")
+        self.energy_shoulder_R.insert(0, "55.0")
+        self.energy_stroke.insert(0, "25.0")
+        self.energy_diameter.insert(0, "26.0")
+        self.energy_wall_thickness.insert(0, "0")  # 0 = solid
+        self.energy_E.insert(0, "210000")  # MPa - steel
+        self.energy_G.insert(0, "80000")   # MPa - steel
         
     def calculate_ride_frequency(self):
         """Calculate ride frequency outputs with new simplified inputs"""
@@ -885,9 +1289,6 @@ class SuspensionCalculatorGUI:
             
             self.roll_wheel_rate_rear.delete(0, tk.END)
             self.roll_wheel_rate_rear.insert(0, f"{wheel_rate_r_with_param:.2f}")
-            
-            self.roll_sprung_mass.delete(0, tk.END)
-            self.roll_sprung_mass.insert(0, f"{sprung_mass_f*2 + sprung_mass_r*2:.1f}")
             
             # Store total mass for roll calculations
             self.total_vehicle_mass = total_mass
@@ -1004,10 +1405,6 @@ class SuspensionCalculatorGUI:
             
             self.out_arb_req_fr.config(text=f"{req_arb_fr:.1f}")
             self.out_arb_req_rr.config(text=f"{req_arb_rr:.1f}")
-            
-            # Update ARB Design Tab Input
-            self.req_arb_roll_stiffness.delete(0, tk.END)
-            self.req_arb_roll_stiffness.insert(0, f"{req_arb_fr + req_arb_rr:.1f}")
             
             messagebox.showinfo("Success", "Roll stiffness calculations completed!")
             
@@ -1151,6 +1548,73 @@ class SuspensionCalculatorGUI:
             
         except ValueError as e:
             messagebox.showerror("Error", f"Please enter valid numbers.\n{str(e)}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Calculation error: {str(e)}")
+    
+    def calculate_arb_energy_method(self):
+        """Calculate ARB stiffness using energy method"""
+        try:
+            # Get inputs
+            eyeball_span = float(self.energy_eyeball_span.get())
+            shoulder_span = float(self.energy_shoulder_span.get())
+            clamp_span = float(self.energy_clamp_span.get())
+            arm_length = float(self.energy_arm_length.get())
+            shoulder_R = float(self.energy_shoulder_R.get())
+            stroke = float(self.energy_stroke.get())
+            diameter = float(self.energy_diameter.get())
+            wall_thickness_input = float(self.energy_wall_thickness.get())
+            E = float(self.energy_E.get())
+            G = float(self.energy_G.get())
+            
+            # Handle wall thickness (0 or None means solid)
+            wall_thickness = None if wall_thickness_input <= 0 else wall_thickness_input
+            
+            # Calculate
+            results = self.arb_energy_calculator.calculate(
+                eyeball_span=eyeball_span,
+                shoulder_span=shoulder_span,
+                clamp_span=clamp_span,
+                arm_length=arm_length,
+                shoulder_R=shoulder_R,
+                stroke=stroke,
+                material_diameter=diameter,
+                wall_thickness=wall_thickness,
+                E=E,
+                G=G
+            )
+            
+            summary = self.arb_energy_calculator.get_summary()
+            
+            # Update spring rate
+            self.out_calc_rate.config(text=f"{summary['spring_rate_calculated']:.4f}")
+            
+            # Update physical properties
+            self.out_bar_mass.config(text=f"{summary['bar_mass']:.6f}")
+            self.out_inner_dia.config(text=f"{summary['inner_diameter']:.2f}")
+            self.out_2nd_moment.config(text=f"{summary['second_moment_area_bending']:.2f}")
+            self.out_polar_moment.config(text=f"{summary['polar_moment_area_torsion']:.2f}")
+            
+            # Update geometry results
+            bend_angle_deg = math.degrees(summary['bend_angle_rad'])
+            self.out_bend_angle.config(text=f"{bend_angle_deg:.2f}")
+            self.out_eff_length.config(text=f"{summary['effective_straight_length']:.2f}")
+            
+            # Update energy breakdown
+            self.out_energy_A.config(text=f"{summary['energy_straight_section']:.6e}")
+            self.out_energy_B.config(text=f"{summary['energy_bend_bending']:.6e}")
+            self.out_energy_C.config(text=f"{summary['energy_bend_torsion']:.6e}")
+            self.out_energy_D.config(text=f"{summary['energy_middle_section']:.6e}")
+            self.out_energy_E.config(text=f"{summary['energy_outer_section']:.6e}")
+            self.out_energy_total.config(text=f"{summary['total_strain_energy']:.6e}")
+            
+            messagebox.showinfo("Success", 
+                              f"ARB Energy Method calculations completed!\n\n"
+                              f"Calculated Spring Rate: {summary['spring_rate_calculated']:.4f} N/mm\n"
+                              f"Bar Mass: {summary['bar_mass']:.6f} kg\n"
+                              f"Bend Angle: {bend_angle_deg:.2f}°")
+            
+        except ValueError as e:
+            messagebox.showerror("Error", f"Please enter valid numbers in all fields.\n{str(e)}")
         except Exception as e:
             messagebox.showerror("Error", f"Calculation error: {str(e)}")
     

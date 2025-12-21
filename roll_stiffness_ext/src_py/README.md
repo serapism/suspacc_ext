@@ -2,64 +2,76 @@
 
 ## Overview
 
-The **Suspension & ARB Design Calculator** is a specialized engineering tool designed for vehicle dynamics analysis. It assists engineers in calculating ride frequencies, roll stiffness requirements, and detailed Anti-Roll Bar (ARB) design parameters using both geometric and strain energy methods.
-
-Built with Python and Tkinter, it features a tabbed Graphical User Interface (GUI) that streamlines the workflow from initial vehicle mass inputs to final component sizing.
+The **Suspension & ARB Design Calculator** is a comprehensive Python-based GUI application designed for vehicle dynamics engineering. It facilitates the calculation of ride frequencies, roll stiffness requirements, and detailed Anti-Roll Bar (ARB) design parameters using both simplified geometric models and advanced strain energy methods.
 
 ## Features
 
 ### 1. Ride Frequency Analysis
-Calculates the required spring stiffness to achieve target ride frequencies.
-*   **Inputs:** Front/Rear axle weights, unsprung masses, tire stiffness, motion ratios, and parametric stiffness.
-*   **Outputs:** Spring rates, wheel rates, ride rates, and wheel hop frequencies.
-*   **Visuals:** Real-time weight distribution calculation.
+*   **Mass Management:** Input front/rear axle weights and unsprung masses to calculate sprung mass and weight distribution.
+*   **Frequency Targets:** Calculate required spring rates based on target ride frequencies (Hz).
+*   **Stiffness Calculations:** Computes wheel rates, ride rates, and wheel hop frequencies.
+*   **Parametric Stiffness:** Accounts for auxiliary stiffness (bushings, links) acting in parallel with springs.
 
 ### 2. Roll Stiffness Calculation
-Determines the required roll stiffness distribution based on a 14-step vehicle dynamics methodology.
-*   **Inputs:** Vehicle geometry (CG height, roll centers, track widths), wheel rates, and target roll gradients.
-*   **Outputs:** Roll moment calculation, tire roll stiffness contribution, spring contribution, and the resulting required ARB stiffness for front and rear.
+*   **14-Step Methodology:** Implements a structured approach to roll dynamics.
+*   **Geometry:** Calculates effective roll center heights and roll moment arms based on CG and suspension geometry.
+*   **Requirements:** Determines total required roll stiffness to meet target roll gradients (deg/g).
+*   **Distribution:** Calculates the split between tire stiffness, spring stiffness, and the remaining requirement for ARBs.
 
-### 3. ARB Design (Geometric)
-Sizes the Anti-Roll Bar based on the requirements calculated in the Roll Stiffness tab.
-*   **Inputs:** Bush stiffness, clamp spans, eye spans, and lever ratios.
-*   **Outputs:** Required bar stiffness, bush lever ratios, and combined eye stiffness.
+### 3. ARB Design (Simplified)
+*   **Targeting:** Uses outputs from the Roll Stiffness tab to size ARBs.
+*   **Linkage Effects:** Accounts for bush stiffness, clamp spans, eye spans, and motion ratios.
+*   **Outputs:** Calculates required bar stiffness and combined eye stiffness.
 
-### 4. ARB Energy Method
-An advanced calculator that uses the **Strain Energy Method** to determine the exact stiffness of an ARB.
-*   **Methodology:** Accounts for bending and torsional energy in the straight section, bends, and arms.
-*   **Inputs:** Detailed geometry (eyeball span, shoulder span, arm length, bend radius), material properties (Young's Modulus, Shear Modulus), and cross-section details (solid or hollow).
-*   **Outputs:** Precise spring rate (N/mm), bar mass, moments of inertia, and a detailed breakdown of strain energy per section.
+### 4. ARB Energy Method (Advanced)
+*   **Strain Energy Calculation:** Uses energy methods to calculate the exact stiffness of complex ARB shapes.
+*   **Detailed Geometry:** Inputs for eyeball span, shoulder span, arm length, bend radii, and number of bends.
+*   **Material Properties:** Supports custom Young's Modulus (E), Shear Modulus (G), and hollow vs. solid bars.
+*   **Analysis:** Provides a breakdown of energy stored in bending vs. torsion for different sections of the bar.
 
-## Getting Started
+### 5. Data Management
+*   **Configuration System:** Save, load, update, and delete design configurations (JSON-based).
+*   **Excel Export:** Export detailed reports of all tabs to `.xlsx` format for documentation.
 
-### Prerequisites
+## Prerequisites
+
 *   **Python 3.x**
-*   **Tkinter** (Standard Python GUI library, usually included with Python installations)
+*   **tkinter** (Included with standard Python installations)
 
-### Installation
-No specific installation is required. Ensure the source files are in a directory and run the main script.
-
-### Usage
-Run the main application file:
+### Optional Dependencies
+For the "Export to Excel" functionality, the following packages are required:
 
 ```bash
-python src_py/roll_stiff_new_arb_dia.py
+pip install pandas openpyxl
 ```
 
-*(Note: Adjust the path according to your specific file structure if necessary)*
+## Usage
 
-## Workflow
+Run the main application script:
 
-The application is designed to be used sequentially, though tabs function independently:
+```bash
+python roll_stiff_new_arb_dia.py
+```
 
-1.  **Ride Frequency:** Establish baseline spring rates.
-2.  **Roll Stiffness:** Use the calculated spring rates to determine how much additional roll stiffness is needed from ARBs.
-3.  **ARB Design:** Size the ARB system (bars + bushings) to meet the roll stiffness targets.
-4.  **ARB Energy Method:** Verify the specific bar geometry to ensure it delivers the calculated stiffness.
+### Workflow
+1.  **Ride Frequency Tab:** Establish baseline vehicle masses and spring rates.
+2.  **Roll Stiffness Tab:** Define vehicle geometry (CG, Roll Centers) and roll targets to determine how much roll stiffness the ARBs need to provide.
+3.  **ARB Design Tab:** Define the linkage geometry (lever ratios, bush stiffness) to find the required bar stiffness.
+4.  **ARB Energy Method Tab:** Use the "Auto-Fill" feature to import targets, then refine the physical bar geometry (bends, diameter) to match the required stiffness.
+
+## File Structure
+
+*   `roll_stiff_new_arb_dia.py`: Main application containing the GUI and all calculation logic.
+*   `saved_configs.json`: (Created at runtime) Stores user-saved design configurations.
 
 ## Version Information
 
 *   **Version:** 1.0.0
 *   **Release Date:** December 2024
-*   **Created by:** Nirmal
-*   **Organization:** CEER
+*   **Created By:** Nirmal (CEER)
+
+## Future Implementations
+
+*   7 DOF Analysis
+*   Damping Curves
+*   Other Loading Conditions
